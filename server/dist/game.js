@@ -162,6 +162,15 @@ function isCardPlayable(card, gameState) {
         return true;
     return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue;
 }
+// reset uno calls
+function resetUnoCalls(gameState) {
+    var _a;
+    for (const pid of Object.keys(gameState.hands)) {
+        if (((_a = gameState.hands[pid]) === null || _a === void 0 ? void 0 : _a.length) > 1) {
+            delete gameState.unoCalls[pid];
+        }
+    }
+}
 // advance turn
 function advanceTurn(gameState, playerIds, steps = 1) {
     const total = playerIds.length;
@@ -225,6 +234,19 @@ function playCard(gameState, playerIds, playerId, cardId, chosenColor, playerNam
         });
         return { success: true };
     }
+    // check uno penalty
+    if (hand.length === 1 && !gameState.unoCalls[playerId]) {
+        const penaltyCards = drawFromDeck(gameState, 2);
+        hand.push(...penaltyCards);
+        gameState.logs.unshift({
+            id: Math.random().toString(),
+            text: `⚠️ ${name} forgot to call UNO and drew 2 penalty cards!`,
+            privateText: `⚠️ You forgot to call UNO and drew 2 penalty cards!`,
+            playerId,
+            time: Date.now()
+        });
+    }
+    resetUnoCalls(gameState);
     // card effect handling
     if (activeSide.value === '+2') {
         if (isStacking) {
@@ -461,6 +483,7 @@ function drawCard(gameState, playerIds, playerId, playerName) {
         gameState.accumulatedPenalty = 0;
         gameState.drawnCardId = null;
         hand.push(...drawn);
+        resetUnoCalls(gameState);
         // check if player has any playable card in hand
         const hasAnyPlayable = hand.some(c => isCardPlayable(c, gameState));
         if (hasAnyPlayable) {
@@ -493,6 +516,7 @@ function drawCard(gameState, playerIds, playerId, playerName) {
     }
     const drawnCard = drawn[0];
     hand.push(drawnCard);
+    resetUnoCalls(gameState);
     const playable = isCardPlayable(drawnCard, gameState);
     if (playable) {
         // allow playing or passing

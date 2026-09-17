@@ -205,6 +205,15 @@ export function isCardPlayable(card: Card, gameState: GameState): boolean {
   return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue;
 }
 
+// reset uno calls
+function resetUnoCalls(gameState: GameState) {
+  for (const pid of Object.keys(gameState.hands)) {
+    if (gameState.hands[pid]?.length > 1) {
+      delete gameState.unoCalls[pid];
+    }
+  }
+}
+
 // advance turn
 function advanceTurn(gameState: GameState, playerIds: string[], steps: number = 1) {
   const total = playerIds.length;
@@ -283,6 +292,21 @@ export function playCard(
     });
     return { success: true };
   }
+
+  // check uno penalty
+  if (hand.length === 1 && !gameState.unoCalls[playerId]) {
+    const penaltyCards = drawFromDeck(gameState, 2);
+    hand.push(...penaltyCards);
+    gameState.logs.unshift({
+      id: Math.random().toString(),
+      text: `⚠️ ${name} forgot to call UNO and drew 2 penalty cards!`,
+      privateText: `⚠️ You forgot to call UNO and drew 2 penalty cards!`,
+      playerId,
+      time: Date.now()
+    });
+  }
+
+  resetUnoCalls(gameState);
 
   // card effect handling
   if (activeSide.value === '+2') {
@@ -521,6 +545,7 @@ export function drawCard(
     gameState.drawnCardId = null;
 
     hand.push(...drawn);
+    resetUnoCalls(gameState);
 
     // check if player has any playable card in hand
     const hasAnyPlayable = hand.some(c => isCardPlayable(c, gameState));
@@ -557,6 +582,7 @@ export function drawCard(
 
   const drawnCard = drawn[0];
   hand.push(drawnCard);
+  resetUnoCalls(gameState);
 
   const playable = isCardPlayable(drawnCard, gameState);
 
