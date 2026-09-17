@@ -95,7 +95,10 @@ io.on('connection', (socket) => {
     const room = getRoom(roomId);
     if (!room || !room.gameState) return;
 
-    const playerIds = room.players.map(p => p.id);
+    const sender = room.players.find(p => p.id === socket.id);
+    if (sender?.isSpectator) return;
+
+    const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
     const res = playCard(room.gameState, playerIds, socket.id, cardId, chosenColor);
     if (res.success) {
       // update wins
@@ -116,7 +119,10 @@ io.on('connection', (socket) => {
     const room = getRoom(roomId);
     if (!room || !room.gameState) return;
 
-    const playerIds = room.players.map(p => p.id);
+    const sender = room.players.find(p => p.id === socket.id);
+    if (sender?.isSpectator) return;
+
+    const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
     const res = drawCard(room.gameState, playerIds, socket.id);
     if (res.success) {
       io.to(roomId).emit('room-update', room);
@@ -128,7 +134,10 @@ io.on('connection', (socket) => {
     const room = getRoom(roomId);
     if (!room || !room.gameState) return;
 
-    const playerIds = room.players.map(p => p.id);
+    const sender = room.players.find(p => p.id === socket.id);
+    if (sender?.isSpectator) return;
+
+    const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
     if (passTurn(room.gameState, playerIds, socket.id)) {
       io.to(roomId).emit('room-update', room);
     }
@@ -138,6 +147,9 @@ io.on('connection', (socket) => {
   socket.on('call-uno', ({ roomId }) => {
     const room = getRoom(roomId);
     if (!room || !room.gameState) return;
+
+    const sender = room.players.find(p => p.id === socket.id);
+    if (sender?.isSpectator) return;
 
     if (callUno(room.gameState, socket.id)) {
       io.to(roomId).emit('room-update', room);

@@ -7,6 +7,7 @@ export interface Player {
   ping?: number;
   isOnline?: boolean;
   wins?: number;
+  isSpectator?: boolean;
 }
 
 export interface Room {
@@ -64,14 +65,26 @@ export function addPlayer(roomId: string, playerId: string, name: string): Room 
   room.players = room.players.filter(p => p.id !== playerId && p.name.toLowerCase() !== name.toLowerCase());
 
   const isHost = wasHost !== undefined ? wasHost : room.players.length === 0;
+  const isSpectator = room.status === 'playing';
+
   room.players.push({
     id: playerId,
     name,
     isHost,
     ping: 20,
     isOnline: true,
-    wins: prevWins
+    wins: prevWins,
+    isSpectator
   });
+
+  // log spectator join
+  if (isSpectator && room.gameState) {
+    room.gameState.logs.unshift({
+      id: Math.random().toString(),
+      text: `👁 ${name} joined as a spectator`,
+      time: Date.now()
+    });
+  }
 
   return room;
 }
@@ -95,8 +108,10 @@ export function removePlayer(playerId: string): { roomId: string; room: Room } |
   for (const [roomId, room] of rooms.entries()) {
     const playerIndex = room.players.findIndex(p => p.id === playerId);
     if (playerIndex !== -1) {
-      const playerName = room.players[playerIndex].name;
-      const wasHost = room.players[playerIndex].isHost;
+      const player = room.players[playerIndex];
+      const playerName = player.name;
+      const wasHost = player.isHost;
+      const wasSpectator = player.isSpectator;
       room.players.splice(playerIndex, 1);
 
       // assign new host
@@ -104,23 +119,26 @@ export function removePlayer(playerId: string): { roomId: string; room: Room } |
         room.players[0].isHost = true;
       }
 
+      const activePlayers = room.players.filter(p => !p.isSpectator);
+
       // cleanup game state
-      if (room.gameState) {
+      if (room.gameState && !wasSpectator) {
         delete room.gameState.hands[playerId];
         room.gameState.logs.unshift({
           id: Math.random().toString(),
           text: `${playerName} left the room`,
           time: Date.now()
         });
-        if (room.players.length >= 2) {
-          room.gameState.currentTurnIndex = room.gameState.currentTurnIndex % room.players.length;
+        if (activePlayers.length >= 2) {
+          room.gameState.currentTurnIndex = room.gameState.currentTurnIndex % activePlayers.length;
         }
       }
 
       // reset status if not enough players
-      if (room.players.length < 2) {
+      if (activePlayers.length < 2 && room.status === 'playing') {
         room.status = 'waiting';
         room.gameState = undefined;
+        room.players.forEach(p => { p.isSpectator = false; });
       }
 
       // delay empty room deletion
@@ -146,6 +164,7 @@ export function startGame(roomId: string, hostId: string): Room | null {
   const host = room.players.find(p => p.id === hostId);
   if (!host || !host.isHost) return null;
 
+  room.players.forEach(p => { p.isSpectator = false; });
   room.status = 'playing';
   room.gameState = initializeGame(room.players.map(p => p.id), room.mode);
   return room;
@@ -159,6 +178,7 @@ export function restartGame(roomId: string, hostId: string): Room | null {
   const host = room.players.find(p => p.id === hostId);
   if (!host || !host.isHost) return null;
 
+  room.players.forEach(p => { p.isSpectator = false; });
   room.status = 'playing';
   room.gameState = initializeGame(room.players.map(p => p.id), room.mode);
   return room;
@@ -184,6 +204,7 @@ export function returnToLobby(roomId: string, hostId: string): Room | null {
   const host = room.players.find(p => p.id === hostId);
   if (!host || !host.isHost) return null;
 
+  room.players.forEach(p => { p.isSpectator = false; });
   room.status = 'waiting';
   room.gameState = undefined;
   return room;

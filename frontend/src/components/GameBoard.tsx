@@ -36,6 +36,7 @@ interface GameBoardProps {
   socket: Socket | null
   currentSocketId: string
   isHost: boolean
+  isSpectator?: boolean
   myPing: number | null
   onLeaveRoom?: () => void
 }
@@ -49,6 +50,7 @@ export default function GameBoard({
   socket,
   currentSocketId,
   isHost,
+  isSpectator = false,
   myPing,
   onLeaveRoom
 }: GameBoardProps) {
@@ -110,11 +112,13 @@ export default function GameBoard({
     }
   }, [])
 
-  const currentTurnPlayer = players[gameState.currentTurnIndex]
-  const isMyTurn = currentTurnPlayer?.id === currentSocketId
-  const myHand = gameState.hands[currentSocketId] || []
+  const activePlayers = players.filter(p => !p.isSpectator)
+  const spectatorPlayers = players.filter(p => p.isSpectator)
+  const currentTurnPlayer = activePlayers[gameState.currentTurnIndex]
+  const isMyTurn = !isSpectator && currentTurnPlayer?.id === currentSocketId
+  const myHand = isSpectator ? [] : (gameState.hands[currentSocketId] || [])
   const topDiscard = gameState.discardPile[gameState.discardPile.length - 1]
-  const canPassOrSkip = isMyTurn && gameState.canPassTurn
+  const canPassOrSkip = !isSpectator && isMyTurn && gameState.canPassTurn
 
   // sound and banner on log update
   useEffect(() => {
@@ -326,6 +330,11 @@ export default function GameBoard({
             <span className="room-badge-indicator">ROOM</span>
             <span className="room-code-badge">{roomId}</span>
           </div>
+          {isSpectator && (
+            <div className="spectator-top-pill">
+              <span className="spectator-live-dot">●</span> 👁️ SPECTATING
+            </div>
+          )}
           <button className="sound-toggle-btn" onClick={toggleSound} title={isMuted ? 'Unmute' : 'Mute'}>
             {isMuted ? '🔇 Muted' : '🔊 Sound'}
           </button>
@@ -342,6 +351,13 @@ export default function GameBoard({
           </button>
         </div>
       </header>
+
+      {/* Spectator notice toast */}
+      {isSpectator && (
+        <div className="spectator-sub-banner">
+          <span>👁️ You joined while a game is active. Enjoy the match — you'll join the lobby / next round!</span>
+        </div>
+      )}
 
       {/* Floating Action Notice Toast */}
       {actionNotice && (
@@ -360,6 +376,58 @@ export default function GameBoard({
             <p className="winner-subtext">
               {isMeWinner ? 'Masterful play! You played all your cards first!' : `${winner.name} dominated the table.`}
             </p>
+
+            {/* end game player cards summary */}
+            <div className="end-game-scoreboard">
+              <h4>Final Standings</h4>
+              <div className="end-game-player-list">
+                {players
+                  .slice()
+                  .sort((a, b) => {
+                    const aCount = (gameState.hands[a.id] || []).length
+                    const bCount = (gameState.hands[b.id] || []).length
+                    return aCount - bCount
+                  })
+                  .map((p) => {
+                    const cardCount = (gameState.hands[p.id] || []).length
+                    const isWinner = p.id === gameState.winnerId || cardCount === 0
+                    const isMe = p.id === currentSocketId
+
+                    return (
+                      <div key={p.id} className={`end-game-player-item ${isWinner ? 'winner-item' : ''}`}>
+                        <div className="end-game-player-left">
+                          <span className="end-game-avatar">
+                            {p.name.slice(0, 2).toUpperCase()}
+                          </span>
+                          <span className="end-game-name">
+                            {isMe ? `${p.name} (You)` : p.name}
+                          </span>
+                          {p.isSpectator && (
+                            <span className="spectator-mini-tag">👁️ Spectator</span>
+                          )}
+                          {(p.wins || 0) > 0 && (
+                            <span className="player-wins-badge" title={`${p.wins} wins in this room`}>
+                              🏆 {p.wins}
+                            </span>
+                          )}
+                        </div>
+                        <div className="end-game-card-count">
+                          {p.isSpectator ? (
+                            <span className="ended-cards-pill">Spectating</span>
+                          ) : isWinner ? (
+                            <span className="winner-tag-pill">👑 0 cards (Winner)</span>
+                          ) : (
+                            <span className="ended-cards-pill">
+                              Ended with {cardCount} {cardCount === 1 ? 'card' : 'cards'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+
             {isHost ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
                 <button className="btn btn-play btn-glow" onClick={handleRestart}>
@@ -428,7 +496,7 @@ export default function GameBoard({
       {/* Turn sequence track */}
       <section className="turn-sequence-bar">
         <div className="turn-sequence-track">
-          {players.map((player, idx) => {
+          {activePlayers.map((player, idx) => {
             const isPlayerTurn = idx === gameState.currentTurnIndex
             const isMe = player.id === currentSocketId
             const pHand = gameState.hands[player.id] || []
@@ -461,14 +529,20 @@ export default function GameBoard({
                   {player.isHost && <span className="mini-host-crown">👑</span>}
                 </div>
 
-                {players.length > 1 && (
+                {activePlayers.length > 1 && (
                   <span className={`turn-arrow-indicator ${isPlayerTurn ? 'arrow-highlight' : ''}`}>
-                    {idx < players.length - 1 ? arrowChar : (players.length > 2 ? (isClockwise ? '↺' : '↻') : '')}
+                    {idx < activePlayers.length - 1 ? arrowChar : (activePlayers.length > 2 ? (isClockwise ? '↺' : '↻') : '')}
                   </span>
                 )}
               </div>
             )
           })}
+
+          {spectatorPlayers.length > 0 && (
+            <div className="spectator-count-badge" title={spectatorPlayers.map(s => s.name).join(', ')}>
+              👁️ {spectatorPlayers.length} {spectatorPlayers.length === 1 ? 'Spectator' : 'Spectators'}
+            </div>
+          )}
         </div>
       </section>
 
@@ -530,7 +604,9 @@ export default function GameBoard({
               side={gameState.mode === 'flip' && gameState.side === 'light' ? 'dark' : 'light'}
             />
             <div className={`pile-label-badge ${isMyTurn ? 'badge-my-turn' : ''}`}>
-              {gameState.pendingPenaltyType 
+              {isSpectator 
+                ? 'Draw Deck'
+                : gameState.pendingPenaltyType 
                 ? `Take +${gameState.accumulatedPenalty}` 
                 : canPassOrSkip ? 'Skip / Pass' : isMyTurn ? 'Tap to Draw' : 'Draw Deck'}
             </div>
@@ -550,96 +626,109 @@ export default function GameBoard({
 
         {/* Esports Turn Spotlight Banner */}
         <div className={`turn-spotlight ${isMyTurn ? 'my-turn-spotlight' : ''}`}>
-          {isMyTurn 
+          {isSpectator 
+            ? `👁️ Watching ${currentTurnPlayer?.name || 'players'}'s turn`
+            : isMyTurn 
             ? (canPassOrSkip ? '👉 Play from your hand or click Skip / Pass' : '⚡ YOUR TURN — Play a matching card or draw!')
             : `Waiting for ${currentTurnPlayer?.name || 'player'}...`}
         </div>
       </section>
 
       {/* Floating Action Controls & Shimmering CALL UNO Button */}
-      <div className="interactive-controls-bar">
-        {canPassOrSkip && (
-          <button className="btn btn-secondary btn-glow" onClick={handlePassTurn}>
-            ✋ Skip / Pass Turn
-          </button>
-        )}
-
-        {canCallUno && (
-          <button className="uno-flame-btn" onClick={handleCallUno}>
-            <span className="uno-flame-sparkle">🔥</span>
-            <span>CALL UNO!</span>
-          </button>
-        )}
-      </div>
-
-      {/* Ergonomic Fanned Player Hand Dock */}
-      <footer className="player-hand-dock">
-        <div className="dock-header">
-          <div className="dock-title">
-            <span>Your Hand</span>
-            <span className="cards-count-badge">{myHand.length} cards</span>
-          </div>
-          {gameState.mode === 'flip' && (
-            <button 
-              className={`btn-peek-flip ${isHandFlipped ? 'peek-active' : ''}`}
-              onClick={() => setIsHandFlipped(!isHandFlipped)}
-              title="Flip hand over to peek at the other side"
-            >
-              <span>↺</span>
-              <span>{isHandFlipped ? 'Showing Flip Side' : 'Peek Flip Side'}</span>
+      {!isSpectator && (
+        <div className="interactive-controls-bar">
+          {canPassOrSkip && (
+            <button className="btn btn-secondary btn-glow" onClick={handlePassTurn}>
+              ✋ Skip / Pass Turn
             </button>
           )}
-          {gameState.unoCalls[currentSocketId] && (
-            <span className="uno-active-badge">✦ UNO SAFE</span>
+
+          {canCallUno && (
+            <button className="uno-flame-btn" onClick={handleCallUno}>
+              <span className="uno-flame-sparkle">🔥</span>
+              <span>CALL UNO!</span>
+            </button>
           )}
         </div>
+      )}
 
-        <div 
-          ref={fanContainerRef}
-          className={`cards-fan-container ${isGrabbing ? 'is-grabbing' : ''}`}
-          onMouseDown={handleMouseDown}
-          onWheel={(e) => {
-            if (e.deltaY !== 0) {
-              e.currentTarget.scrollLeft += e.deltaY
-            }
-          }}
-        >
-          {myHand.map((card, idx) => {
-            const playable = checkPlayable(card)
-            const isJustDrawn = card.id === gameState.drawnCardId
-            const total = myHand.length
-
-            // fan curve
-            const centerIdx = (total - 1) / 2
-            const offset = idx - centerIdx
-            const maxRot = total > 10 ? 10 : 16
-            const rotStep = total > 10 ? 1.2 : 2.2
-            const rotation = total > 3 ? Math.max(-maxRot, Math.min(maxRot, offset * rotStep)) : 0
-            const translateY = Math.min(12, Math.abs(offset) * (total > 10 ? 1.2 : 2.0))
-
-            return (
-              <div 
-                key={card.id} 
-                className={`fanned-card-slot ${playable ? 'slot-playable' : 'slot-unplayable'}`}
-                style={{ 
-                  transform: `translateY(${translateY}px) rotate(${rotation}deg)`,
-                  zIndex: idx + 1
-                }}
+      {/* Player Hand or Spectator Dock */}
+      {isSpectator ? (
+        <footer className="spectator-bottom-dock">
+          <div className="spectator-dock-card">
+            <span className="spectator-badge-pill">👁️ SPECTATING MATCH</span>
+            <p>You joined while a match is in progress. Watch the table play out — you will automatically enter the lobby / join the next round!</p>
+          </div>
+        </footer>
+      ) : (
+        <footer className="player-hand-dock">
+          <div className="dock-header">
+            <div className="dock-title">
+              <span>Your Hand</span>
+              <span className="cards-count-badge">{myHand.length} cards</span>
+            </div>
+            {gameState.mode === 'flip' && (
+              <button 
+                className={`btn-peek-flip ${isHandFlipped ? 'peek-active' : ''}`}
+                onClick={() => setIsHandFlipped(!isHandFlipped)}
+                title="Flip hand over to peek at the other side"
               >
-                {isJustDrawn && <span className="just-drawn-chip">NEW</span>}
-                <UnoCard
-                  card={card}
-                  isPlayable={playable}
-                  onClick={() => handleCardClick(card)}
-                  onMouseEnter={() => handleCardHover(playable)}
-                  side={gameState.side}
-                  isHandFlipped={isHandFlipped}
-                />
-              </div>
-            )
-          })}
-        </div>
-      </footer>
+                <span>↺</span>
+                <span>{isHandFlipped ? 'Showing Flip Side' : 'Peek Flip Side'}</span>
+              </button>
+            )}
+            {gameState.unoCalls[currentSocketId] && (
+              <span className="uno-active-badge">✦ UNO SAFE</span>
+            )}
+          </div>
+
+          <div 
+            ref={fanContainerRef}
+            className={`cards-fan-container ${isGrabbing ? 'is-grabbing' : ''}`}
+            onMouseDown={handleMouseDown}
+            onWheel={(e) => {
+              if (e.deltaY !== 0) {
+                e.currentTarget.scrollLeft += e.deltaY
+              }
+            }}
+          >
+            {myHand.map((card, idx) => {
+              const playable = checkPlayable(card)
+              const isJustDrawn = card.id === gameState.drawnCardId
+              const total = myHand.length
+
+              // fan curve
+              const centerIdx = (total - 1) / 2
+              const offset = idx - centerIdx
+              const maxRot = total > 10 ? 10 : 16
+              const rotStep = total > 10 ? 1.2 : 2.2
+              const rotation = total > 3 ? Math.max(-maxRot, Math.min(maxRot, offset * rotStep)) : 0
+              const translateY = Math.min(12, Math.abs(offset) * (total > 10 ? 1.2 : 2.0))
+
+              return (
+                <div 
+                  key={card.id} 
+                  className={`fanned-card-slot ${playable ? 'slot-playable' : 'slot-unplayable'}`}
+                  style={{ 
+                    transform: `translateY(${translateY}px) rotate(${rotation}deg)`,
+                    zIndex: idx + 1
+                  }}
+                >
+                  {isJustDrawn && <span className="just-drawn-chip">NEW</span>}
+                  <UnoCard
+                    card={card}
+                    isPlayable={playable}
+                    onClick={() => handleCardClick(card)}
+                    onMouseEnter={() => handleCardHover(playable)}
+                    side={gameState.side}
+                    isHandFlipped={isHandFlipped}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </footer>
+      )}
     </div>
   )
 }

@@ -11,6 +11,7 @@ export interface Player {
   ping?: number
   isOnline?: boolean
   wins?: number
+  isSpectator?: boolean
 }
 
 interface GameState {
@@ -232,6 +233,7 @@ export default function Room() {
 
   const currentSocketId = socketRef.current?.id || ''
   const isCurrentHost = roomData?.players.some(p => p.id === currentSocketId && p.isHost) ?? false
+  const isMeSpectator = roomData?.players.find(p => p.id === currentSocketId)?.isSpectator ?? false
   const playerCount = roomData?.players.length || 0
   const canStartGame = playerCount >= 2
 
@@ -247,6 +249,7 @@ export default function Room() {
           socket={socketRef.current}
           currentSocketId={currentSocketId}
           isHost={isCurrentHost}
+          isSpectator={isMeSpectator}
           myPing={myPing}
           onLeaveRoom={handleLeaveRoom}
         />
