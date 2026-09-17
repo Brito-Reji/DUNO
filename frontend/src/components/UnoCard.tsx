@@ -18,6 +18,7 @@ export interface UnoCardProps {
   rotation?: number
   side?: 'light' | 'dark'
   isHandFlipped?: boolean
+  overrideColor?: string
 }
 
 function UnoCard({
@@ -29,7 +30,8 @@ function UnoCard({
   isSmall = false,
   rotation = 0,
   side = 'light',
-  isHandFlipped = false
+  isHandFlipped = false,
+  overrideColor
 }: UnoCardProps) {
   // determine active side
   const effectiveSide: 'light' | 'dark' = isHandFlipped 
@@ -40,7 +42,7 @@ function UnoCard({
     ? card.dark
     : (card.light || { color: card.color, value: card.value })
 
-  const activeColor = activeProps.color
+  const activeColor = (activeProps.color === 'wild' && overrideColor) ? overrideColor : activeProps.color
   const activeValue = activeProps.value
 
   // draw pile card back

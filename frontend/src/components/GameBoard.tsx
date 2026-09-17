@@ -623,7 +623,12 @@ export default function GameBoard({
           {topDiscard && (
             <div className="pile-realistic-stack discard-pile-group">
               <div className={`discard-ambient-ring glow-${gameState.activeColor}`} />
-              <UnoCard card={topDiscard} rotation={-4} side={gameState.side} />
+              <UnoCard 
+                card={topDiscard} 
+                rotation={-4} 
+                side={gameState.side} 
+                overrideColor={gameState.activeColor !== 'wild' ? gameState.activeColor : undefined}
+              />
               <div className="pile-label-badge">
                 Discard Pile
               </div>
