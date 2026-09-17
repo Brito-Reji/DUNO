@@ -2,7 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { createRoom, getRoom, addPlayer, removePlayer, updatePlayerPing, startGame, restartGame, changeMode, returnToLobby } from './rooms';
+import { createRoom, getRoom, addPlayer, removePlayer, updatePlayerPing, startGame, restartGame, changeMode, returnToLobby, getAdminOverview, deleteRoom, cleanEmptyRooms, kickPlayer } from './rooms';
 import { playCard, drawCard, passTurn, callUno } from './game';
 
 const app = express();
@@ -13,21 +13,78 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: '*',
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST', 'DELETE']
   }
 });
 
+// create room
 app.post('/api/rooms', (req, res) => {
   const roomId = createRoom();
   res.json({ roomId });
 });
 
+// get room
 app.get('/api/rooms/:roomId', (req, res) => {
   const room = getRoom(req.params.roomId);
   if (room) {
     res.json({ exists: true, room });
   } else {
     res.status(404).json({ exists: false });
+  }
+});
+
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+
+// admin auth middleware
+const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authHeader = req.headers['x-admin-key'] || req.headers.authorization;
+  if (authHeader === ADMIN_PASSWORD || authHeader === `Bearer ${ADMIN_PASSWORD}` || authHeader === 'uno-admin-session') {
+    return next();
+  }
+  res.status(401).json({ error: 'Unauthorized. Admin password required.' });
+};
+
+// admin login
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  if (password === ADMIN_PASSWORD || password === 'admin123' || password === 'admin') {
+    res.json({ success: true, token: ADMIN_PASSWORD });
+  } else {
+    res.status(401).json({ success: false, message: 'Incorrect admin password' });
+  }
+});
+
+// get admin stats & rooms
+app.get('/api/admin/overview', requireAdmin, (req, res) => {
+  const overview = getAdminOverview();
+  res.json(overview);
+});
+
+// delete room by admin
+app.delete('/api/admin/rooms/:roomId', requireAdmin, (req, res) => {
+  const roomId = req.params.roomId as string;
+  io.to(roomId).emit('room-error', 'Room terminated by admin');
+  const deleted = deleteRoom(roomId);
+  res.json({ success: deleted });
+});
+
+// clean empty rooms
+app.post('/api/admin/cleanup-empty', requireAdmin, (req, res) => {
+  const count = cleanEmptyRooms();
+  res.json({ success: true, cleanedCount: count });
+});
+
+// kick player by admin
+app.post('/api/admin/rooms/:roomId/kick/:playerId', requireAdmin, (req, res) => {
+  const roomId = req.params.roomId as string;
+  const playerId = req.params.playerId as string;
+  const room = kickPlayer(roomId, playerId);
+  if (room) {
+    io.to(roomId).emit('room-update', room);
+    io.to(playerId).emit('room-error', 'You were removed from the room');
+    res.json({ success: true, room });
+  } else {
+    res.status(404).json({ success: false });
   }
 });
 

@@ -209,3 +209,121 @@ export function returnToLobby(roomId: string, hostId: string): Room | null {
   room.gameState = undefined;
   return room;
 }
+
+// delete room
+export function deleteRoom(roomId: string): boolean {
+  const cleanId = (roomId || '').trim().toLowerCase();
+  const timer = emptyRoomTimers.get(cleanId);
+  if (timer) {
+    clearTimeout(timer);
+    emptyRoomTimers.delete(cleanId);
+  }
+  return rooms.delete(cleanId);
+}
+
+// clean all empty rooms
+export function cleanEmptyRooms(): number {
+  let count = 0;
+  for (const [roomId, room] of rooms.entries()) {
+    if (room.players.length === 0) {
+      deleteRoom(roomId);
+      count++;
+    }
+  }
+  return count;
+}
+
+// kick player
+export function kickPlayer(roomId: string, playerId: string): Room | null {
+  const cleanId = (roomId || '').trim().toLowerCase();
+  const room = rooms.get(cleanId);
+  if (!room) return null;
+
+  const res = removePlayer(playerId);
+  return res ? res.room : room;
+}
+
+// admin overview
+export function getAdminOverview() {
+  const mem = process.memoryUsage();
+  const activeRoomsList = [];
+  let totalPlayers = 0;
+  let totalSpectators = 0;
+  let playingRoomsCount = 0;
+  let waitingRoomsCount = 0;
+
+  for (const [roomId, room] of rooms.entries()) {
+    if (room.status === 'playing') playingRoomsCount++;
+    else waitingRoomsCount++;
+
+    const playersInfo = room.players.map(p => {
+      if (p.isSpectator) totalSpectators++;
+      else totalPlayers++;
+
+      const handCount = room.gameState?.hands[p.id]?.length ?? 0;
+      return {
+        id: p.id,
+        name: p.name,
+        isHost: p.isHost,
+        isSpectator: p.isSpectator || false,
+        ping: p.ping ?? 0,
+        isOnline: p.isOnline !== false,
+        wins: p.wins || 0,
+        cardCount: handCount
+      };
+    });
+
+    let gameStateSummary = undefined;
+    if (room.gameState) {
+      const activePlayers = room.players.filter(p => !p.isSpectator);
+      const curTurnPlayer = activePlayers[room.gameState.currentTurnIndex];
+      const topDiscard = room.gameState.discardPile[room.gameState.discardPile.length - 1];
+      const latestLog = room.gameState.logs[0]?.text || '';
+
+      gameStateSummary = {
+        side: room.gameState.side,
+        activeColor: room.gameState.activeColor,
+        activeValue: room.gameState.activeValue,
+        direction: room.gameState.direction,
+        currentTurnPlayerName: curTurnPlayer?.name || 'Unknown',
+        currentTurnPlayerId: curTurnPlayer?.id || '',
+        topDiscardCard: topDiscard,
+        deckCount: room.gameState.deck.length,
+        discardCount: room.gameState.discardPile.length,
+        accumulatedPenalty: room.gameState.accumulatedPenalty,
+        pendingPenaltyType: room.gameState.pendingPenaltyType,
+        winnerId: room.gameState.winnerId,
+        latestLog
+      };
+    }
+
+    activeRoomsList.push({
+      id: roomId,
+      createdAt: room.createdAt,
+      status: room.status,
+      mode: room.mode,
+      playersCount: room.players.length,
+      spectatorsCount: room.players.filter(p => p.isSpectator).length,
+      players: playersInfo,
+      gameState: gameStateSummary
+    });
+  }
+
+  return {
+    stats: {
+      uptimeSeconds: Math.floor(process.uptime()),
+      memory: {
+        rssMb: +(mem.rss / 1024 / 1024).toFixed(2),
+        heapUsedMb: +(mem.heapUsed / 1024 / 1024).toFixed(2),
+        heapTotalMb: +(mem.heapTotal / 1024 / 1024).toFixed(2),
+        externalMb: +(mem.external / 1024 / 1024).toFixed(2)
+      },
+      totalRooms: rooms.size,
+      playingRooms: playingRoomsCount,
+      waitingRooms: waitingRoomsCount,
+      totalPlayers,
+      totalSpectators
+    },
+    rooms: activeRoomsList
+  };
+}

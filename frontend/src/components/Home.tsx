@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 export default function Home() {
   const [username, setUsername] = useState(() => localStorage.getItem('uno_username') || '')
@@ -121,6 +121,11 @@ export default function Home() {
             Join Room
           </button>
         </form>
+        <div style={{ marginTop: '1.4rem', textAlign: 'center' }}>
+          <Link to="/admin" style={{ color: '#64748b', fontSize: '0.82rem', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span>🛡️</span> Admin Portal
+          </Link>
+        </div>
       </div>
     </div>
   )
