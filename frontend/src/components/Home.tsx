@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { BACKEND_URL } from '../utils/config'
 import logger from '../utils/logger'
 
