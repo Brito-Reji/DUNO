@@ -149,7 +149,7 @@ io.on('connection', (socket) => {
         if (sender === null || sender === void 0 ? void 0 : sender.isSpectator)
             return;
         const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
-        const res = (0, game_1.playCard)(room.gameState, playerIds, socket.id, cardId, chosenColor);
+        const res = (0, game_1.playCard)(room.gameState, playerIds, socket.id, cardId, chosenColor, sender === null || sender === void 0 ? void 0 : sender.name);
         if (res.success) {
             // update wins
             if (room.gameState.winnerId) {
@@ -173,7 +173,7 @@ io.on('connection', (socket) => {
         if (sender === null || sender === void 0 ? void 0 : sender.isSpectator)
             return;
         const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
-        const res = (0, game_1.drawCard)(room.gameState, playerIds, socket.id);
+        const res = (0, game_1.drawCard)(room.gameState, playerIds, socket.id, sender === null || sender === void 0 ? void 0 : sender.name);
         if (res.success) {
             io.to(roomId).emit('room-update', room);
         }
@@ -187,7 +187,7 @@ io.on('connection', (socket) => {
         if (sender === null || sender === void 0 ? void 0 : sender.isSpectator)
             return;
         const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
-        if ((0, game_1.passTurn)(room.gameState, playerIds, socket.id)) {
+        if ((0, game_1.passTurn)(room.gameState, playerIds, socket.id, sender === null || sender === void 0 ? void 0 : sender.name)) {
             io.to(roomId).emit('room-update', room);
         }
     });
@@ -199,7 +199,7 @@ io.on('connection', (socket) => {
         const sender = room.players.find(p => p.id === socket.id);
         if (sender === null || sender === void 0 ? void 0 : sender.isSpectator)
             return;
-        if ((0, game_1.callUno)(room.gameState, socket.id)) {
+        if ((0, game_1.callUno)(room.gameState, socket.id, sender === null || sender === void 0 ? void 0 : sender.name)) {
             io.to(roomId).emit('room-update', room);
         }
     });

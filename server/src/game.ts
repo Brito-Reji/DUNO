@@ -13,6 +13,8 @@ export interface GameLog {
   id: string;
   text: string;
   time: number;
+  playerId?: string;
+  privateText?: string;
 }
 
 export interface GameState {
@@ -194,12 +196,12 @@ export function isCardPlayable(card: Card, gameState: GameState): boolean {
   // when penalty is active, both stacking cards and matching cards / wilds are allowed
   if (gameState.pendingPenaltyType !== null) {
     if (activeSide.value === gameState.pendingPenaltyType) return true;
-    if (activeSide.value === 'wild' || activeSide.value === '+4') return true;
+    if (activeSide.color === 'wild' || activeSide.value === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild_draw_color') return true;
     return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue;
   }
 
   // normal check
-  if (activeSide.value === '+4' || activeSide.value === 'wild') return true;
+  if (activeSide.color === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild' || activeSide.value === 'wild_draw_color') return true;
   return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue;
 }
 
@@ -218,7 +220,8 @@ export function playCard(
   playerIds: string[],
   playerId: string,
   cardId: string,
-  chosenColor?: CardColor
+  chosenColor?: CardColor,
+  playerName?: string
 ): { success: boolean; message?: string } {
   if (gameState.winnerId) return { success: false, message: 'Game has already ended' };
 
@@ -238,6 +241,7 @@ export function playCard(
     return { success: false, message: 'Invalid move according to UNO rules' };
   }
 
+  const name = playerName || 'Player';
   const activeSide = getActiveSide(card, gameState);
 
   // check penalty handling
@@ -272,7 +276,9 @@ export function playCard(
     gameState.winnerId = playerId;
     gameState.logs.unshift({
       id: Math.random().toString(),
-      text: `🏆 Player won the game!`,
+      text: `🏆 ${name} won the game!`,
+      privateText: `🏆 You won the game!`,
+      playerId,
       time: Date.now()
     });
     return { success: true };
@@ -289,8 +295,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0 
-        ? `Took +${penaltyToTake} penalty & played +2! Stack is now +2`
+        ? `${name} took +${penaltyToTake} penalty & played +2!`
+        : `${name} played +2! Stack is now +${gameState.accumulatedPenalty}`,
+      privateText: penaltyToTake > 0 
+        ? `Took +${penaltyToTake} penalty & played +2!`
         : `+2 played! Stack is now +${gameState.accumulatedPenalty}`,
+      playerId,
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
@@ -304,8 +314,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0 
+        ? `${name} took +${penaltyToTake} penalty & played +4! New color: ${newColor.toUpperCase()}`
+        : `${name} played +4! New color: ${newColor.toUpperCase()}. Stack: +${gameState.accumulatedPenalty}`,
+      privateText: penaltyToTake > 0 
         ? `Took +${penaltyToTake} penalty & played +4! New color: ${newColor.toUpperCase()}`
         : `+4 played! New color: ${newColor.toUpperCase()}. Stack: +${gameState.accumulatedPenalty}`,
+      playerId,
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
@@ -319,8 +333,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0 
-        ? `Took +${penaltyToTake} penalty & played +5! Stack is now +5`
+        ? `${name} took +${penaltyToTake} penalty & played +5!`
+        : `${name} played +5! Stack is now +${gameState.accumulatedPenalty}`,
+      privateText: penaltyToTake > 0 
+        ? `Took +${penaltyToTake} penalty & played +5!`
         : `+5 played! Stack is now +${gameState.accumulatedPenalty}`,
+      playerId,
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
@@ -328,8 +346,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
-        ? `Took +${penaltyToTake} penalty & played Skip! Next player skipped.`
+        ? `${name} took +${penaltyToTake} penalty & played Skip!`
+        : `${name} played Skip! Next player skipped.`,
+      privateText: penaltyToTake > 0
+        ? `Took +${penaltyToTake} penalty & played Skip!`
         : `Skip played! Next player skipped.`,
+      playerId,
       time: Date.now()
     });
     if (playerIds.length === 2) {
@@ -341,8 +363,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
+        ? `${name} took +${penaltyToTake} penalty & played Skip Everyone!`
+        : `${name} played Skip Everyone!`,
+      privateText: penaltyToTake > 0
         ? `Took +${penaltyToTake} penalty & played Skip Everyone!`
-        : `Skip Everyone played! Player gets another turn.`,
+        : `Skip Everyone played! You get another turn.`,
+      playerId,
       time: Date.now()
     });
     // No advanceTurn, current player goes again.
@@ -351,8 +377,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
-        ? `Took +${penaltyToTake} penalty & played Reverse! Direction changed.`
+        ? `${name} took +${penaltyToTake} penalty & played Reverse!`
+        : `${name} played Reverse! Play direction changed.`,
+      privateText: penaltyToTake > 0
+        ? `Took +${penaltyToTake} penalty & played Reverse!`
         : `Reverse played! Play direction changed.`,
+      playerId,
       time: Date.now()
     });
     if (playerIds.length === 2) {
@@ -364,8 +394,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
+        ? `${name} took +${penaltyToTake} penalty & played Wild (${newColor.toUpperCase()})`
+        : `${name} played Wild (${newColor.toUpperCase()})`,
+      privateText: penaltyToTake > 0
         ? `Took +${penaltyToTake} penalty & played Wild (${newColor.toUpperCase()})`
         : `Wild played! New color: ${newColor.toUpperCase()}`,
+      playerId,
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
@@ -375,8 +409,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
+        ? `${name} took +${penaltyToTake} penalty & played Wild Draw Color (${newColor.toUpperCase()})`
+        : `${name} played Wild Draw Color (${newColor.toUpperCase()})`,
+      privateText: penaltyToTake > 0
         ? `Took +${penaltyToTake} penalty & played Wild Draw Color (${newColor.toUpperCase()})`
         : `Wild Draw Color played! Next player draws until ${newColor.toUpperCase()}`,
+      playerId,
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
@@ -402,8 +440,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
-        ? `Took +${penaltyToTake} penalty & played Flip! Side changed to ${gameState.side.toUpperCase()}`
-        : `Flip played! Side changed to ${gameState.side.toUpperCase()}. New color: ${gameState.activeColor.toUpperCase()}`,
+        ? `${name} took +${penaltyToTake} penalty & played Flip!`
+        : `${name} played Flip! Side changed to ${gameState.side.toUpperCase()}`,
+      privateText: penaltyToTake > 0
+        ? `Took +${penaltyToTake} penalty & played Flip!`
+        : `Flip played! Side changed to ${gameState.side.toUpperCase()}`,
+      playerId,
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
@@ -411,8 +453,12 @@ export function playCard(
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
+        ? `${name} took +${penaltyToTake} penalty & played ${activeSide.color.toUpperCase()} ${activeSide.value}`
+        : `${name} played ${activeSide.color.toUpperCase()} ${activeSide.value}`,
+      privateText: penaltyToTake > 0
         ? `Took +${penaltyToTake} penalty & played ${activeSide.color.toUpperCase()} ${activeSide.value}`
         : `Played ${activeSide.color.toUpperCase()} ${activeSide.value}`,
+      playerId,
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
@@ -422,7 +468,12 @@ export function playCard(
 }
 
 // draw card / take penalty
-export function drawCard(gameState: GameState, playerIds: string[], playerId: string): { success: boolean; drawnCount: number; isPlayable: boolean } {
+export function drawCard(
+  gameState: GameState,
+  playerIds: string[],
+  playerId: string,
+  playerName?: string
+): { success: boolean; drawnCount: number; isPlayable: boolean } {
   if (gameState.winnerId) return { success: false, drawnCount: 0, isPlayable: false };
 
   const currentTurnPlayerId = playerIds[gameState.currentTurnIndex];
@@ -432,12 +483,14 @@ export function drawCard(gameState: GameState, playerIds: string[], playerId: st
 
   // if already drew this turn and clicking draw again, pass turn
   if (gameState.canPassTurn || gameState.drawnCardId) {
-    passTurn(gameState, playerIds, playerId);
+    passTurn(gameState, playerIds, playerId, playerName);
     return { success: true, drawnCount: 0, isPlayable: false };
   }
 
   const hand = gameState.hands[playerId];
   if (!hand) return { success: false, drawnCount: 0, isPlayable: false };
+
+  const name = playerName || 'Player';
 
   // penalty draw
   if (gameState.pendingPenaltyType) {
@@ -452,7 +505,7 @@ export function drawCard(gameState: GameState, playerIds: string[], playerId: st
         drawn.push(c[0]);
         count++;
         const activeSide = getActiveSide(c[0], gameState);
-        if (activeSide.color === targetColor || activeSide.color === 'wild') { // Wild counts as any color usually, but let's strictly require the exact color for "wild_draw_color"? Actually rules say draw until you get a card of that color. A wild isn't that color. Let's just strictly match color.
+        if (activeSide.color === targetColor || activeSide.color === 'wild') {
           if (activeSide.color === targetColor) break;
         }
       }
@@ -476,13 +529,17 @@ export function drawCard(gameState: GameState, playerIds: string[], playerId: st
       gameState.canPassTurn = true;
       gameState.logs.unshift({
         id: Math.random().toString(),
-        text: `Drew +${count} penalty cards! Play a card or click draw to skip.`,
+        text: `${name} drew +${count} penalty cards`,
+        privateText: `You drew +${count} penalty cards! Play a card or click draw to skip.`,
+        playerId,
         time: Date.now()
       });
     } else {
       gameState.logs.unshift({
         id: Math.random().toString(),
-        text: `Drew +${count} penalty cards (no valid moves).`,
+        text: `${name} drew +${count} penalty cards (no valid moves)`,
+        privateText: `You drew +${count} penalty cards (no valid moves)`,
+        playerId,
         time: Date.now()
       });
       advanceTurn(gameState, playerIds, 1);
@@ -509,7 +566,9 @@ export function drawCard(gameState: GameState, playerIds: string[], playerId: st
     gameState.canPassTurn = true;
     gameState.logs.unshift({
       id: Math.random().toString(),
-      text: `Drew a playable card (${drawnCard.color.toUpperCase()} ${drawnCard.value})! Play or pass.`,
+      text: `${name} drew 1 card`,
+      privateText: `Drew a playable card (${drawnCard.color.toUpperCase()} ${drawnCard.value})! Play or pass.`,
+      playerId,
       time: Date.now()
     });
   } else {
@@ -517,7 +576,9 @@ export function drawCard(gameState: GameState, playerIds: string[], playerId: st
     gameState.canPassTurn = false;
     gameState.logs.unshift({
       id: Math.random().toString(),
-      text: `Drew 1 card`,
+      text: `${name} drew 1 card`,
+      privateText: `You drew 1 card`,
+      playerId,
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
@@ -527,15 +588,23 @@ export function drawCard(gameState: GameState, playerIds: string[], playerId: st
 }
 
 // pass turn after drawing
-export function passTurn(gameState: GameState, playerIds: string[], playerId: string): boolean {
+export function passTurn(
+  gameState: GameState,
+  playerIds: string[],
+  playerId: string,
+  playerName?: string
+): boolean {
   const currentTurnPlayerId = playerIds[gameState.currentTurnIndex];
   if (currentTurnPlayerId !== playerId) return false;
 
+  const name = playerName || 'Player';
   gameState.drawnCardId = null;
   gameState.canPassTurn = false;
   gameState.logs.unshift({
     id: Math.random().toString(),
-    text: `Skipped / passed turn`,
+    text: `${name} passed turn`,
+    privateText: `You passed turn`,
+    playerId,
     time: Date.now()
   });
 
@@ -544,13 +613,16 @@ export function passTurn(gameState: GameState, playerIds: string[], playerId: st
 }
 
 // call uno
-export function callUno(gameState: GameState, playerId: string): boolean {
+export function callUno(gameState: GameState, playerId: string, playerName?: string): boolean {
   const hand = gameState.hands[playerId];
   if (hand && (hand.length === 1 || hand.length === 2)) {
+    const name = playerName || 'Player';
     gameState.unoCalls[playerId] = true;
     gameState.logs.unshift({
       id: Math.random().toString(),
-      text: `🔥 UNO called!`,
+      text: `🔥 ${name} called UNO!`,
+      privateText: `🔥 You called UNO!`,
+      playerId,
       time: Date.now()
     });
     return true;

@@ -8,6 +8,8 @@ interface GameLog {
   id: string
   text: string
   time: number
+  playerId?: string
+  privateText?: string
 }
 
 interface GameState {
@@ -21,7 +23,7 @@ interface GameState {
   activeColor: 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple' | 'wild'
   activeValue: string
   accumulatedPenalty: number
-  pendingPenaltyType: '+2' | '+4' | null
+  pendingPenaltyType: '+2' | '+4' | '+5' | 'wild_draw_color' | null
   drawnCardId: string | null
   canPassTurn: boolean
   unoCalls: Record<string, boolean>
@@ -124,11 +126,16 @@ export default function GameBoard({
   useEffect(() => {
     if (gameState.logs.length > 0) {
       const latest = gameState.logs[0]
-      setActionNotice(latest.text)
-      const timer = setTimeout(() => setActionNotice(null), 2500)
-      return () => clearTimeout(timer)
+      const textToDisplay = (latest.playerId === currentSocketId && latest.privateText)
+        ? latest.privateText
+        : latest.text
+      if (textToDisplay) {
+        setActionNotice(textToDisplay)
+        const timer = setTimeout(() => setActionNotice(null), 2500)
+        return () => clearTimeout(timer)
+      }
     }
-  }, [gameState.logs])
+  }, [gameState.logs, currentSocketId])
 
   // turn chime
   useEffect(() => {
@@ -206,12 +213,12 @@ export default function GameBoard({
     // penalty active: can stack or play matching card/wild
     if (gameState.pendingPenaltyType !== null) {
       if (activeSide.value === gameState.pendingPenaltyType) return true
-      if (activeSide.value === 'wild' || activeSide.value === '+4') return true
+      if (activeSide.color === 'wild' || activeSide.value === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild_draw_color') return true
       return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue
     }
 
     // normal color or value match
-    if (activeSide.value === '+4' || activeSide.value === 'wild') return true
+    if (activeSide.color === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild' || activeSide.value === 'wild_draw_color') return true
     return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue
   }
 
@@ -223,7 +230,7 @@ export default function GameBoard({
     const activeSide = getActiveSide(card);
 
     // wild cards require color selection
-    if (activeSide.color === 'wild' || activeSide.value === 'wild' || activeSide.value === '+4') {
+    if (activeSide.color === 'wild' || activeSide.value === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild_draw_color') {
       setSelectedWildCard(card)
       setShowColorPicker(true)
       return
