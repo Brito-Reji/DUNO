@@ -59,6 +59,56 @@ export default function GameBoard({
   const [actionNotice, setActionNotice] = useState<string | null>(null)
   const confettiCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const prevTurnRef = useRef<boolean>(false)
+  const fanContainerRef = useRef<HTMLDivElement | null>(null)
+  const isPointerDownRef = useRef(false)
+  const isDraggingRef = useRef(false)
+  const startXRef = useRef(0)
+  const scrollLeftRef = useRef(0)
+  const [isGrabbing, setIsGrabbing] = useState(false)
+
+  // mouse drag scroll
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0 || !fanContainerRef.current) return
+    const rect = fanContainerRef.current.getBoundingClientRect()
+    if (e.clientY > rect.bottom - 10) return
+
+    isPointerDownRef.current = true
+    startXRef.current = e.pageX
+    scrollLeftRef.current = fanContainerRef.current.scrollLeft
+  }
+
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!isPointerDownRef.current || !fanContainerRef.current) return
+      const dx = e.pageX - startXRef.current
+      if (Math.abs(dx) > 6) {
+        if (!isDraggingRef.current) {
+          isDraggingRef.current = true
+          setIsGrabbing(true)
+        }
+        fanContainerRef.current.scrollLeft = scrollLeftRef.current - dx
+      }
+    }
+
+    const handleGlobalMouseUp = () => {
+      if (isPointerDownRef.current) {
+        isPointerDownRef.current = false
+        setIsGrabbing(false)
+        if (isDraggingRef.current) {
+          setTimeout(() => {
+            isDraggingRef.current = false
+          }, 60)
+        }
+      }
+    }
+
+    window.addEventListener('mousemove', handleGlobalMouseMove)
+    window.addEventListener('mouseup', handleGlobalMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove)
+      window.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [])
 
   const currentTurnPlayer = players[gameState.currentTurnIndex]
   const isMyTurn = currentTurnPlayer?.id === currentSocketId
@@ -163,6 +213,7 @@ export default function GameBoard({
 
   // handle card click
   const handleCardClick = (card: Card) => {
+    if (isDraggingRef.current) return
     if (!checkPlayable(card)) return
 
     const activeSide = getActiveSide(card);
@@ -529,7 +580,9 @@ export default function GameBoard({
         </div>
 
         <div 
-          className="cards-fan-container"
+          ref={fanContainerRef}
+          className={`cards-fan-container ${isGrabbing ? 'is-grabbing' : ''}`}
+          onMouseDown={handleMouseDown}
           onWheel={(e) => {
             if (e.deltaY !== 0) {
               e.currentTarget.scrollLeft += e.deltaY

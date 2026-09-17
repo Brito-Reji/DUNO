@@ -84,7 +84,7 @@ function UnoCard({
       case 'reverse':
         return '⇄'
       case 'flip':
-        return '↺'
+        return <span className="corner-flip-badge">FLIP</span>
       case 'wild':
         return 'W'
       case '+4':
@@ -119,12 +119,15 @@ function UnoCard({
         )
       case 'flip':
         return (
-          <svg viewBox="0 0 32 32" className="card-svg-icon flip-svg" fill="currentColor">
-            <path d="M12 6h8a2 2 0 0 1 2 2v5h-3V9h-7v3l-5-4 5-4v2z" />
-            <path d="M20 26h-8a2 2 0 0 1-2-2v-5h3v4h7v-3l5 4-5 4v-2z" />
-            <rect x="10" y="10" width="6" height="8" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
-            <rect x="16" y="14" width="6" height="8" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
-          </svg>
+          <div className="card-flip-content">
+            <svg viewBox="0 0 32 32" className="card-svg-icon flip-svg" fill="currentColor">
+              <path d="M12 6h8a2 2 0 0 1 2 2v5h-3V9h-7v3l-5-4 5-4v2z" />
+              <path d="M20 26h-8a2 2 0 0 1-2-2v-5h3v4h7v-3l5 4-5 4v-2z" />
+              <rect x="10" y="10" width="6" height="8" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              <rect x="16" y="14" width="6" height="8" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+            </svg>
+            <span className="card-flip-text">FLIP</span>
+          </div>
         )
       case '+2':
         return <span className="card-action-text">+2</span>

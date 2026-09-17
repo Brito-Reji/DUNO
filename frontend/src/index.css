@@ -702,45 +702,45 @@ input:focus {
 }
 
 /* light side in-oval colors */
-.card-side-light.card-color-red .card-num-text, .card-side-light.card-color-red .card-action-text,
-.card-color-red:not(.card-side-dark) .card-num-text, .card-color-red:not(.card-side-dark) .card-action-text {
+.card-side-light.card-color-red .card-num-text, .card-side-light.card-color-red .card-action-text, .card-side-light.card-color-red .card-flip-text,
+.card-color-red:not(.card-side-dark) .card-num-text, .card-color-red:not(.card-side-dark) .card-action-text, .card-color-red:not(.card-side-dark) .card-flip-text {
   color: var(--uno-red);
   text-shadow: 1.5px 1.5px 0 rgba(0,0,0,0.25);
 }
-.card-side-light.card-color-blue .card-num-text, .card-side-light.card-color-blue .card-action-text,
-.card-color-blue:not(.card-side-dark) .card-num-text, .card-color-blue:not(.card-side-dark) .card-action-text {
+.card-side-light.card-color-blue .card-num-text, .card-side-light.card-color-blue .card-action-text, .card-side-light.card-color-blue .card-flip-text,
+.card-color-blue:not(.card-side-dark) .card-num-text, .card-color-blue:not(.card-side-dark) .card-action-text, .card-color-blue:not(.card-side-dark) .card-flip-text {
   color: var(--uno-blue);
   text-shadow: 1.5px 1.5px 0 rgba(0,0,0,0.25);
 }
-.card-side-light.card-color-green .card-num-text, .card-side-light.card-color-green .card-action-text,
-.card-color-green:not(.card-side-dark) .card-num-text, .card-color-green:not(.card-side-dark) .card-action-text {
+.card-side-light.card-color-green .card-num-text, .card-side-light.card-color-green .card-action-text, .card-side-light.card-color-green .card-flip-text,
+.card-color-green:not(.card-side-dark) .card-num-text, .card-color-green:not(.card-side-dark) .card-action-text, .card-color-green:not(.card-side-dark) .card-flip-text {
   color: var(--uno-green);
   text-shadow: 1.5px 1.5px 0 rgba(0,0,0,0.25);
 }
-.card-side-light.card-color-yellow .card-num-text, .card-side-light.card-color-yellow .card-action-text,
-.card-color-yellow:not(.card-side-dark) .card-num-text, .card-color-yellow:not(.card-side-dark) .card-action-text {
+.card-side-light.card-color-yellow .card-num-text, .card-side-light.card-color-yellow .card-action-text, .card-side-light.card-color-yellow .card-flip-text,
+.card-color-yellow:not(.card-side-dark) .card-num-text, .card-color-yellow:not(.card-side-dark) .card-action-text, .card-color-yellow:not(.card-side-dark) .card-flip-text {
   color: #cc9200;
   text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
 }
 
 /* dark side in-oval colors */
-.card-side-dark.card-color-teal .card-num-text, .card-side-dark.card-color-teal .card-action-text {
+.card-side-dark.card-color-teal .card-num-text, .card-side-dark.card-color-teal .card-action-text, .card-side-dark.card-color-teal .card-flip-text {
   color: #00ffff;
   text-shadow: 0 0 10px rgba(0,255,255,0.85), 0 0 20px rgba(0,200,179,0.5), 1px 1px 2px #000;
 }
-.card-side-dark.card-color-orange .card-num-text, .card-side-dark.card-color-orange .card-action-text {
+.card-side-dark.card-color-orange .card-num-text, .card-side-dark.card-color-orange .card-action-text, .card-side-dark.card-color-orange .card-flip-text {
   color: #ff7700;
   text-shadow: 0 0 10px rgba(255,119,0,0.85), 0 0 20px rgba(255,94,0,0.5), 1px 1px 2px #000;
 }
-.card-side-dark.card-color-pink .card-num-text, .card-side-dark.card-color-pink .card-action-text {
+.card-side-dark.card-color-pink .card-num-text, .card-side-dark.card-color-pink .card-action-text, .card-side-dark.card-color-pink .card-flip-text {
   color: #ff007f;
   text-shadow: 0 0 10px rgba(255,0,127,0.85), 0 0 20px rgba(230,0,126,0.5), 1px 1px 2px #000;
 }
-.card-side-dark.card-color-purple .card-num-text, .card-side-dark.card-color-purple .card-action-text {
+.card-side-dark.card-color-purple .card-num-text, .card-side-dark.card-color-purple .card-action-text, .card-side-dark.card-color-purple .card-flip-text {
   color: #c744fc;
   text-shadow: 0 0 10px rgba(199,68,252,0.85), 0 0 20px rgba(123,44,191,0.5), 1px 1px 2px #000;
 }
-.card-side-dark.card-color-wild .card-num-text, .card-side-dark.card-color-wild .card-action-text {
+.card-side-dark.card-color-wild .card-num-text, .card-side-dark.card-color-wild .card-action-text, .card-side-dark.card-color-wild .card-flip-text {
   color: #ffffff;
   text-shadow: 0 0 8px rgba(255,255,255,0.85), 1px 1px 2px #000;
 }
@@ -760,6 +760,35 @@ input:focus {
 .card-side-dark.card-color-pink .card-svg-icon { stroke: #ff007f; fill: #ff007f; }
 .card-side-dark.card-color-purple .card-svg-icon { stroke: #c744fc; fill: #c744fc; }
 .card-side-dark.card-color-wild .card-svg-icon { stroke: #ffffff; fill: #ffffff; }
+
+/* flip card content */
+.card-flip-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.card-flip-content .card-svg-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.card-flip-text {
+  font-size: 0.72rem;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.corner-flip-badge {
+  font-size: 0.65rem;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.5px;
+}
 
 /* wild jewel disc */
 .wild-disc-container {
@@ -1695,6 +1724,18 @@ input:focus {
   scrollbar-color: rgba(255, 255, 255, 0.35) rgba(0, 0, 0, 0.25);
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  cursor: grab;
+  user-select: none;
+}
+
+.cards-fan-container.is-grabbing {
+  cursor: grabbing !important;
+  scroll-behavior: auto !important;
+}
+
+.cards-fan-container.is-grabbing * {
+  cursor: grabbing !important;
+  pointer-events: none;
 }
 
 .cards-fan-container::before,
@@ -2124,6 +2165,21 @@ input:focus {
   .card-svg-icon {
     width: 20px;
     height: 20px;
+  }
+
+  .card-flip-content .card-svg-icon {
+    width: 17px;
+    height: 17px;
+  }
+
+  .card-flip-text {
+    font-size: 0.52rem;
+    letter-spacing: 0.5px;
+  }
+
+  .corner-flip-badge {
+    font-size: 0.5rem;
+    letter-spacing: 0;
   }
 
   .wild-quad-circle {
