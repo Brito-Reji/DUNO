@@ -27,6 +27,13 @@ interface AdminPlayer {
   wins: number
   cardCount: number
 }
+export interface LogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+  roomId?: string;
+  stack?: string;
+}
 
 interface AdminRoom {
   id: string
@@ -61,7 +68,8 @@ export default function AdminPortal() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   const [mainView, setMainView] = useState<'rooms' | 'logs'>('rooms')
-  const [serverLogs, setServerLogs] = useState<string[]>([])
+  const [serverLogs, setServerLogs] = useState<LogEntry[]>([])
+  const [selectedLogRoom, setSelectedLogRoom] = useState<string>('all')
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [rooms, setRooms] = useState<AdminRoom[]>([])
   const [loading, setLoading] = useState(true)
@@ -136,7 +144,10 @@ export default function AdminPortal() {
         return
       }
 
-      const logsRes = await fetch(`${BACKEND_URL}/api/admin/logs`, {
+      const logsUrl = selectedLogRoom === 'all' 
+        ? `${BACKEND_URL}/api/admin/logs`
+        : `${BACKEND_URL}/api/admin/logs?roomId=${selectedLogRoom}`
+      const logsRes = await fetch(logsUrl, {
         headers: { 'x-admin-key': key }
       })
       if (logsRes.ok) {
@@ -163,7 +174,7 @@ export default function AdminPortal() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [isAuthenticated, autoRefresh])
+  }, [isAuthenticated, autoRefresh, selectedLogRoom])
 
   // delete room
   const handleTerminateRoom = async (roomId: string) => {
@@ -371,12 +382,27 @@ export default function AdminPortal() {
 
       {mainView === 'logs' && (
         <section className="admin-logs-section" style={{ padding: '0 2rem 2rem 2rem' }}>
+          <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <label style={{ color: '#94a3b8' }}>Filter by Room:</label>
+            <select 
+              value={selectedLogRoom}
+              onChange={(e) => setSelectedLogRoom(e.target.value)}
+              style={{ background: '#1e293b', color: 'white', border: '1px solid #334155', padding: '0.5rem', borderRadius: '4px' }}
+            >
+              <option value="all">All Rooms</option>
+              {rooms.map(r => (
+                <option key={r.id} value={r.id}>Room: {r.id}</option>
+              ))}
+            </select>
+          </div>
           <div className="logs-container" style={{ background: '#0d1117', color: '#c9d1d9', padding: '1rem', height: '600px', overflowY: 'auto', fontFamily: 'monospace', borderRadius: '8px', border: '1px solid #30363d', fontSize: '13px' }}>
             {serverLogs.length === 0 ? <div>No logs available</div> : null}
             {serverLogs.map((log, i) => {
-              const isError = log.includes('error') || log.includes('WARN');
+              const isError = log.level.includes('error') || log.level.includes('warn');
+              const time = new Date(log.timestamp).toLocaleTimeString();
+              const msg = `${time} [${log.level.toUpperCase()}] ${log.roomId ? `[Room: ${log.roomId}] ` : ''}${log.message}`;
               return (
-                <div key={i} style={{ whiteSpace: 'pre-wrap', marginBottom: '0.2rem', color: isError ? '#ff7b72' : 'inherit' }}>{log}</div>
+                <div key={i} style={{ whiteSpace: 'pre-wrap', marginBottom: '0.2rem', color: isError ? '#ff7b72' : 'inherit' }}>{msg}</div>
               )
             })}
           </div>

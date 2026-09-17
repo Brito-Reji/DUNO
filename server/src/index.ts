@@ -69,7 +69,8 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
 
 // get server logs
 app.get('/api/admin/logs', requireAdmin, (req, res) => {
-  const logs = getRecentLogs();
+  const roomId = req.query.roomId as string | undefined;
+  const logs = getRecentLogs(roomId);
   res.json({ logs });
 });
 

@@ -20,6 +20,7 @@ export interface GameLog {
 }
 
 export interface GameState {
+  roomId?: string;
   mode: 'normal' | 'flip';
   side: 'light' | 'dark';
   deck: Card[];
@@ -130,7 +131,7 @@ export function shuffle<T>(array: T[]): T[] {
 }
 
 // initialize new game
-export function initializeGame(playerIds: string[], mode: 'normal' | 'flip' = 'normal'): GameState {
+export function initializeGame(playerIds: string[], roomId: string, mode: 'normal' | 'flip' = 'normal'): GameState {
   let deck = createDeck(mode);
   const hands: Record<string, Card[]> = {};
 
@@ -146,7 +147,10 @@ export function initializeGame(playerIds: string[], mode: 'normal' | 'flip' = 'n
 
   const initialColor = (startCard.color === 'wild' ? COLORS[Math.floor(Math.random() * COLORS.length)] : startCard.color) as CardColor;
 
+  logger.info(`initializeGame: dealt 7 cards to each of ${playerIds.length} players. Deck remaining: ${deck.length}`, { roomId });
+
   return {
+    roomId,
     mode,
     side: 'light',
     deck,
@@ -172,16 +176,16 @@ export function initializeGame(playerIds: string[], mode: 'normal' | 'flip' = 'n
 
 // draw cards from deck (reshuffles if low)
 function drawFromDeck(gameState: GameState, count: number): Card[] {
-  logger.debug(`drawFromDeck called with count=${count}, deck size=${gameState.deck.length}, discard size=${gameState.discardPile.length}`);
+  logger.debug(`drawFromDeck called with count=${count}, deck size=${gameState.deck.length}, discard size=${gameState.discardPile.length}`, { roomId: gameState.roomId });
   const drawn: Card[] = [];
 
   for (let i = 0; i < count; i++) {
     if (gameState.deck.length === 0) {
       if (gameState.discardPile.length <= 1) {
-        logger.warn('Deck is empty and discard pile is too small to reshuffle.');
+        logger.warn('Deck is empty and discard pile is too small to reshuffle.', { roomId: gameState.roomId });
         break;
       }
-      logger.info('Deck is empty, reshuffling discard pile into deck.');
+      logger.info('Deck is empty, reshuffling discard pile into deck.', { roomId: gameState.roomId });
       const topCard = gameState.discardPile.pop()!;
       gameState.deck = shuffle(gameState.discardPile);
       gameState.discardPile = [topCard];
@@ -190,7 +194,7 @@ function drawFromDeck(gameState: GameState, count: number): Card[] {
     if (card) drawn.push(card);
   }
 
-  logger.debug(`drawFromDeck returning ${drawn.length} cards`);
+  logger.debug(`drawFromDeck returning ${drawn.length} cards`, { roomId: gameState.roomId });
   return drawn;
 }
 
@@ -280,6 +284,7 @@ export function playCard(
   gameState.discardPile.push(card);
   gameState.drawnCardId = null;
   gameState.canPassTurn = false;
+  logger.info(`playCard: ${name} played ${activeSide.color} ${activeSide.value}`, { roomId: gameState.roomId });
 
   // handle wild color
   let newColor = activeSide.color;
@@ -528,46 +533,47 @@ export function drawCard(
 
   // penalty draw
   if (gameState.pendingPenaltyType) {
-    logger.info(`drawCard: ${name} executing penalty draw (type: ${gameState.pendingPenaltyType})`);
+    logger.info(`drawCard: ${name} executing penalty draw (type: ${gameState.pendingPenaltyType})`, { roomId: gameState.roomId });
     let count = 0;
     const drawn: Card[] = [];
 
     if (gameState.pendingPenaltyType === 'wild_draw_color') {
       const targetColor = gameState.pendingDrawColor;
-      logger.debug(`drawCard: wild_draw_color target is ${targetColor}`);
+      logger.debug(`drawCard: wild_draw_color target is ${targetColor}`, { roomId: gameState.roomId });
       let maxDraws = 24; // safety cap to prevent near-infinite loops
       while (maxDraws > 0) {
         const c = drawFromDeck(gameState, 1);
         if (c.length === 0) {
-          logger.warn('drawCard: wild_draw_color deck is completely empty');
+          logger.warn('drawCard: wild_draw_color deck is completely empty', { roomId: gameState.roomId });
           break; // deck is completely empty
         }
         drawn.push(c[0]);
         count++;
         const activeSide = getActiveSide(c[0], gameState);
-        logger.debug(`drawCard: wild_draw_color drew ${activeSide.color} ${activeSide.value}`);
+        logger.debug(`drawCard: wild_draw_color drew ${activeSide.color} ${activeSide.value}`, { roomId: gameState.roomId });
         if (activeSide.color === targetColor) {
-          logger.info(`drawCard: wild_draw_color found target color ${targetColor} after ${count} cards`);
+          logger.info(`drawCard: wild_draw_color found target color ${targetColor} after ${count} cards`, { roomId: gameState.roomId });
           break;
         }
         maxDraws--;
       }
-      if (maxDraws === 0) logger.warn('drawCard: wild_draw_color hit maxDraws safety cap!');
+      if (maxDraws === 0) logger.warn('drawCard: wild_draw_color hit maxDraws safety cap!', { roomId: gameState.roomId });
       gameState.pendingDrawColor = null;
     } else {
       count = gameState.accumulatedPenalty;
-      logger.debug(`drawCard: standard penalty, drawing ${count} cards`);
+      logger.debug(`drawCard: standard penalty, drawing ${count} cards`, { roomId: gameState.roomId });
       const c = drawFromDeck(gameState, count);
       drawn.push(...c);
     }
 
-    logger.info(`drawCard: ${name} penalty draw complete. Drew ${count} cards total.`);
+    logger.info(`drawCard: ${name} penalty draw complete. Drew ${count} cards total.`, { roomId: gameState.roomId });
     gameState.pendingPenaltyType = null;
     gameState.accumulatedPenalty = 0;
     gameState.drawnCardId = null;
 
     hand.push(...drawn);
     resetUnoCalls(gameState);
+    logger.info(`drawCard: ${name} penalty draw complete. Drew ${count} cards total. Hand size now: ${hand.length}`, { roomId: gameState.roomId });
 
     gameState.logs.unshift({
       id: Math.random().toString(),
@@ -584,6 +590,7 @@ export function drawCard(
   // single card draw
   const drawn = drawFromDeck(gameState, 1);
   if (drawn.length === 0) {
+    logger.info(`drawCard: ${name} tried to draw 1 card but deck was empty`, { roomId: gameState.roomId });
     advanceTurn(gameState, playerIds, 1);
     return { success: true, drawnCount: 0, isPlayable: false };
   }
@@ -592,7 +599,10 @@ export function drawCard(
   hand.push(drawnCard);
   resetUnoCalls(gameState);
 
+  const activeSide = getActiveSide(drawnCard, gameState);
   const playable = isCardPlayable(drawnCard, gameState);
+
+  logger.info(`drawCard: ${name} drew 1 card [${activeSide.color} ${activeSide.value}]. Playable: ${playable}. Hand size now: ${hand.length}`, { roomId: gameState.roomId });
 
   if (playable) {
     // allow playing or passing
@@ -637,6 +647,7 @@ export function passTurn(
   const name = playerName || 'Player';
   gameState.drawnCardId = null;
   gameState.canPassTurn = false;
+  logger.info(`passTurn: ${name} passed their turn.`, { roomId: gameState.roomId });
   gameState.logs.unshift({
     id: Math.random().toString(),
     text: `${name} passed turn`,
@@ -655,6 +666,7 @@ export function callUno(gameState: GameState, playerId: string, playerName?: str
   if (hand && (hand.length === 1 || hand.length === 2)) {
     const name = playerName || 'Player';
     gameState.unoCalls[playerId] = true;
+    logger.info(`callUno: ${name} called UNO!`, { roomId: gameState.roomId });
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: `🔥 ${name} called UNO!`,

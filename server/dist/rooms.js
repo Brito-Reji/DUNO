@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.rooms = void 0;
 exports.createRoom = createRoom;
@@ -16,6 +19,7 @@ exports.cleanEmptyRooms = cleanEmptyRooms;
 exports.kickPlayer = kickPlayer;
 exports.getAdminOverview = getAdminOverview;
 const game_1 = require("./game");
+const logger_1 = __importDefault(require("./utils/logger"));
 // store active rooms
 exports.rooms = new Map();
 // empty room timers
@@ -32,6 +36,7 @@ function createRoom() {
         status: 'waiting',
         mode: 'normal'
     });
+    logger_1.default.info(`Room created`, { roomId });
     return roomId;
 }
 // get room by id
@@ -100,6 +105,7 @@ function addPlayer(roomId, playerId, name) {
         wins: 0,
         isSpectator
     });
+    logger_1.default.info(`Player ${cleanName} joined as ${isSpectator ? 'spectator' : 'player'}`, { roomId: cleanId });
     // log spectator join
     if (isSpectator && room.gameState) {
         room.gameState.logs.unshift({
@@ -212,7 +218,8 @@ function startGame(roomId, hostId) {
         return null;
     room.players.forEach(p => { p.isSpectator = false; });
     room.status = 'playing';
-    room.gameState = (0, game_1.initializeGame)(room.players.map(p => p.id), room.mode);
+    room.gameState = (0, game_1.initializeGame)(room.players.map(p => p.id), roomId, room.mode);
+    logger_1.default.info(`Game started`, { roomId });
     return room;
 }
 // restart game
@@ -225,7 +232,8 @@ function restartGame(roomId, hostId) {
         return null;
     room.players.forEach(p => { p.isSpectator = false; });
     room.status = 'playing';
-    room.gameState = (0, game_1.initializeGame)(room.players.map(p => p.id), room.mode);
+    room.gameState = (0, game_1.initializeGame)(room.players.map(p => p.id), roomId, room.mode);
+    logger_1.default.info(`Game restarted`, { roomId });
     return room;
 }
 // change mode

@@ -2,9 +2,21 @@ import winston from 'winston';
 import Transport from 'winston-transport';
 
 const MAX_LOGS = 1000;
-const memoryLogs: string[] = [];
 
-export function getRecentLogs() {
+export interface LogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+  roomId?: string;
+  stack?: string;
+}
+
+const memoryLogs: LogEntry[] = [];
+
+export function getRecentLogs(roomId?: string) {
+  if (roomId) {
+    return memoryLogs.filter(log => log.roomId === roomId);
+  }
   return [...memoryLogs]; // return a copy
 }
 
@@ -18,8 +30,15 @@ class MemoryTransport extends Transport {
       this.emit('logged', info);
     });
 
-    const msg = `${info.timestamp} ${info.level}: ${info.message} ${info.stack ? `\n${info.stack}` : ''}`;
-    memoryLogs.push(msg);
+    const entry: LogEntry = {
+      timestamp: info.timestamp,
+      level: info.level,
+      message: info.message,
+      roomId: info.roomId,
+      stack: info.stack,
+    };
+
+    memoryLogs.push(entry);
     if (memoryLogs.length > MAX_LOGS) {
       memoryLogs.shift();
     }

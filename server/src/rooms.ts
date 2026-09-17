@@ -1,4 +1,5 @@
 import { GameState, initializeGame } from './game';
+import logger from './utils/logger';
 
 export interface Player {
   id: string;
@@ -38,6 +39,7 @@ export function createRoom(): string {
     status: 'waiting',
     mode: 'normal'
   });
+  logger.info(`Room created`, { roomId });
   return roomId;
 }
 
@@ -118,6 +120,8 @@ export function addPlayer(roomId: string, playerId: string, name: string): Room 
     wins: 0,
     isSpectator
   });
+
+  logger.info(`Player ${cleanName} joined as ${isSpectator ? 'spectator' : 'player'}`, { roomId: cleanId });
 
   // log spectator join
   if (isSpectator && room.gameState) {
@@ -248,7 +252,8 @@ export function startGame(roomId: string, hostId: string): Room | null {
 
   room.players.forEach(p => { p.isSpectator = false; });
   room.status = 'playing';
-  room.gameState = initializeGame(room.players.map(p => p.id), room.mode);
+  room.gameState = initializeGame(room.players.map(p => p.id), roomId, room.mode);
+  logger.info(`Game started`, { roomId });
   return room;
 }
 
@@ -262,7 +267,8 @@ export function restartGame(roomId: string, hostId: string): Room | null {
 
   room.players.forEach(p => { p.isSpectator = false; });
   room.status = 'playing';
-  room.gameState = initializeGame(room.players.map(p => p.id), room.mode);
+  room.gameState = initializeGame(room.players.map(p => p.id), roomId, room.mode);
+  logger.info(`Game restarted`, { roomId });
   return room;
 }
 
