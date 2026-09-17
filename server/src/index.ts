@@ -94,6 +94,62 @@ app.post('/api/admin/rooms/:roomId/kick/:playerId', requireAdmin, (req, res) => 
   }
 });
 
+// 20s turn timers
+const turnTimers = new Map<string, NodeJS.Timeout>();
+
+function clearTurnTimer(roomId: string) {
+  const timer = turnTimers.get(roomId);
+  if (timer) {
+    clearTimeout(timer);
+    turnTimers.delete(roomId);
+  }
+}
+
+function startTurnTimer(roomId: string) {
+  clearTurnTimer(roomId);
+  const room = getRoom(roomId);
+  if (!room || room.status !== 'playing' || !room.gameState || room.gameState.winnerId) return;
+
+  const timer = setTimeout(() => {
+    turnTimers.delete(roomId);
+    const curRoom = getRoom(roomId);
+    if (!curRoom || curRoom.status !== 'playing' || !curRoom.gameState || curRoom.gameState.winnerId) return;
+
+    const activePlayers = curRoom.players.filter(p => !p.isSpectator);
+    if (activePlayers.length < 2) return;
+
+    const playerIds = activePlayers.map(p => p.id);
+    const currentTurnPlayerId = playerIds[curRoom.gameState.currentTurnIndex];
+    const player = curRoom.players.find(p => p.id === currentTurnPlayerId);
+    const name = player?.name || 'Player';
+
+    // auto action on timeout
+    if (curRoom.gameState.pendingPenaltyType) {
+      drawCard(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+    } else if (curRoom.gameState.drawnCardId || curRoom.gameState.canPassTurn) {
+      passTurn(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+    } else {
+      drawCard(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+      if (playerIds[curRoom.gameState.currentTurnIndex] === currentTurnPlayerId) {
+        passTurn(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+      }
+    }
+
+    curRoom.gameState.logs.unshift({
+      id: Math.random().toString(),
+      text: `⏳ ${name}'s 20s ran out! Turn passed.`,
+      privateText: `⏳ Your 20s ran out! Turn passed.`,
+      playerId: currentTurnPlayerId,
+      time: Date.now()
+    });
+
+    io.to(roomId).emit('room-update', curRoom);
+    startTurnTimer(roomId);
+  }, 20000);
+
+  turnTimers.set(roomId, timer);
+}
+
 // socket handlers
 io.on('connection', (socket) => {
   // ping-pong for latency ms
@@ -125,6 +181,7 @@ io.on('connection', (socket) => {
   socket.on('start-game', ({ roomId }) => {
     const room = startGame(roomId, socket.id);
     if (room) {
+      startTurnTimer(roomId);
       io.to(roomId).emit('room-update', room);
     }
   });
@@ -141,6 +198,7 @@ io.on('connection', (socket) => {
   socket.on('restart-game', ({ roomId }) => {
     const room = restartGame(roomId, socket.id);
     if (room) {
+      startTurnTimer(roomId);
       io.to(roomId).emit('room-update', room);
     }
   });
@@ -149,6 +207,7 @@ io.on('connection', (socket) => {
   socket.on('back-to-lobby', ({ roomId }) => {
     const room = returnToLobby(roomId, socket.id);
     if (room) {
+      clearTurnTimer(roomId);
       io.to(roomId).emit('room-update', room);
     }
   });
@@ -166,10 +225,13 @@ io.on('connection', (socket) => {
     if (res.success) {
       // update wins
       if (room.gameState.winnerId) {
+        clearTurnTimer(roomId);
         const winner = room.players.find(p => p.id === room.gameState?.winnerId);
         if (winner) {
           winner.wins = (winner.wins || 0) + 1;
         }
+      } else {
+        startTurnTimer(roomId);
       }
       io.to(roomId).emit('room-update', room);
     } else {
@@ -188,6 +250,7 @@ io.on('connection', (socket) => {
     const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
     const res = drawCard(room.gameState, playerIds, socket.id, sender?.name);
     if (res.success) {
+      startTurnTimer(roomId);
       io.to(roomId).emit('room-update', room);
     }
   });
@@ -202,6 +265,7 @@ io.on('connection', (socket) => {
 
     const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
     if (passTurn(room.gameState, playerIds, socket.id, sender?.name)) {
+      startTurnTimer(roomId);
       io.to(roomId).emit('room-update', room);
     }
   });
@@ -224,6 +288,11 @@ io.on('connection', (socket) => {
     socket.leave(roomId);
     const result = removePlayer(socket.id);
     if (result) {
+      if (result.room.status !== 'playing' || !result.room.gameState) {
+        clearTurnTimer(result.roomId);
+      } else {
+        startTurnTimer(result.roomId);
+      }
       io.to(result.roomId).emit('room-update', result.room);
     }
   });
@@ -232,6 +301,9 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     const result = handleDisconnect(socket.id);
     if (result) {
+      if (result.room.status !== 'playing' || !result.room.gameState) {
+        clearTurnTimer(result.roomId);
+      }
       io.to(result.roomId).emit('room-update', result.room);
     }
   });

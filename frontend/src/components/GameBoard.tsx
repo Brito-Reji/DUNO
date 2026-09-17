@@ -29,6 +29,8 @@ interface GameState {
   unoCalls: Record<string, boolean>
   winnerId: string | null
   logs: GameLog[]
+  turnStartedAt?: number
+  turnExpiresAt?: number
 }
 
 interface GameBoardProps {
@@ -61,6 +63,7 @@ export default function GameBoard({
   const [isHandFlipped, setIsHandFlipped] = useState(false)
   const [isMuted, setIsMuted] = useState(sounds.isMuted())
   const [actionNotice, setActionNotice] = useState<string | null>(null)
+  const [timeLeft, setTimeLeft] = useState<number>(20)
   const confettiCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const prevTurnRef = useRef<boolean>(false)
   const fanContainerRef = useRef<HTMLDivElement | null>(null)
@@ -69,6 +72,24 @@ export default function GameBoard({
   const startXRef = useRef(0)
   const scrollLeftRef = useRef(0)
   const [isGrabbing, setIsGrabbing] = useState(false)
+
+  // 20s turn countdown
+  useEffect(() => {
+    if (gameState.winnerId) return
+
+    const updateTimer = () => {
+      if (gameState.turnExpiresAt) {
+        const remaining = Math.max(0, Math.ceil((gameState.turnExpiresAt - Date.now()) / 1000))
+        setTimeLeft(remaining)
+      } else {
+        setTimeLeft(20)
+      }
+    }
+
+    updateTimer()
+    const interval = setInterval(updateTimer, 200)
+    return () => clearInterval(interval)
+  }, [gameState.turnExpiresAt, gameState.currentTurnIndex, gameState.winnerId])
 
   // mouse drag scroll
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -533,6 +554,11 @@ export default function GameBoard({
                     {pHand.length}
                   </span>
                   {calledUno && <span className="mini-uno-pill">UNO</span>}
+                  {isPlayerTurn && (
+                    <span className={`mini-timer-pill ${timeLeft <= 5 ? 'timer-urgent' : ''}`}>
+                      {timeLeft}s
+                    </span>
+                  )}
                   {player.isHost && <span className="mini-host-crown">👑</span>}
                 </div>
 
@@ -638,11 +664,17 @@ export default function GameBoard({
 
         {/* Esports Turn Spotlight Banner */}
         <div className={`turn-spotlight ${isMyTurn ? 'my-turn-spotlight' : ''}`}>
-          {isSpectator 
-            ? `👁️ Watching ${currentTurnPlayer?.name || 'players'}'s turn`
-            : isMyTurn 
-            ? (canPassOrSkip ? '👉 Play from your hand or click Skip / Pass' : '⚡ YOUR TURN — Play a matching card or draw!')
-            : `Waiting for ${currentTurnPlayer?.name || 'player'}...`}
+          <div className={`spotlight-timer-chip ${timeLeft <= 5 ? 'timer-urgent' : ''}`}>
+            <span className="timer-icon">⏱️</span>
+            <span className="timer-num">{timeLeft}s</span>
+          </div>
+          <span>
+            {isSpectator 
+              ? `👁️ Watching ${currentTurnPlayer?.name || 'players'}'s turn`
+              : isMyTurn 
+              ? (canPassOrSkip ? '👉 Play from your hand or click Skip / Pass' : '⚡ YOUR TURN — Play a matching card or draw!')
+              : `Waiting for ${currentTurnPlayer?.name || 'player'}...`}
+          </span>
         </div>
       </section>
 

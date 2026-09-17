@@ -35,6 +35,8 @@ export interface GameState {
   unoCalls: Record<string, boolean>;
   winnerId: string | null;
   logs: GameLog[];
+  turnStartedAt: number;
+  turnExpiresAt: number;
 }
 
 const COLORS: Array<'red' | 'blue' | 'green' | 'yellow'> = ['red', 'blue', 'green', 'yellow'];
@@ -160,7 +162,9 @@ export function initializeGame(playerIds: string[], mode: 'normal' | 'flip' = 'n
     winnerId: null,
     logs: [
       { id: Math.random().toString(), text: 'Game started! Top card is ' + initialColor.toUpperCase() + ' ' + startCard.value, time: Date.now() }
-    ]
+    ],
+    turnStartedAt: Date.now(),
+    turnExpiresAt: Date.now() + 20000
   };
 }
 
@@ -221,6 +225,8 @@ function advanceTurn(gameState: GameState, playerIds: string[], steps: number = 
   gameState.currentTurnIndex = (next + total) % total;
   gameState.drawnCardId = null;
   gameState.canPassTurn = false;
+  gameState.turnStartedAt = Date.now();
+  gameState.turnExpiresAt = Date.now() + 20000;
 }
 
 // play a card
@@ -590,6 +596,8 @@ export function drawCard(
     // allow playing or passing
     gameState.drawnCardId = drawnCard.id;
     gameState.canPassTurn = true;
+    gameState.turnStartedAt = Date.now();
+    gameState.turnExpiresAt = Date.now() + 20000;
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: `${name} drew 1 card`,

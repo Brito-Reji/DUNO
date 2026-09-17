@@ -89,6 +89,57 @@ app.post('/api/admin/rooms/:roomId/kick/:playerId', requireAdmin, (req, res) => 
         res.status(404).json({ success: false });
     }
 });
+// 20s turn timers
+const turnTimers = new Map();
+function clearTurnTimer(roomId) {
+    const timer = turnTimers.get(roomId);
+    if (timer) {
+        clearTimeout(timer);
+        turnTimers.delete(roomId);
+    }
+}
+function startTurnTimer(roomId) {
+    clearTurnTimer(roomId);
+    const room = (0, rooms_1.getRoom)(roomId);
+    if (!room || room.status !== 'playing' || !room.gameState || room.gameState.winnerId)
+        return;
+    const timer = setTimeout(() => {
+        turnTimers.delete(roomId);
+        const curRoom = (0, rooms_1.getRoom)(roomId);
+        if (!curRoom || curRoom.status !== 'playing' || !curRoom.gameState || curRoom.gameState.winnerId)
+            return;
+        const activePlayers = curRoom.players.filter(p => !p.isSpectator);
+        if (activePlayers.length < 2)
+            return;
+        const playerIds = activePlayers.map(p => p.id);
+        const currentTurnPlayerId = playerIds[curRoom.gameState.currentTurnIndex];
+        const player = curRoom.players.find(p => p.id === currentTurnPlayerId);
+        const name = (player === null || player === void 0 ? void 0 : player.name) || 'Player';
+        // auto action on timeout
+        if (curRoom.gameState.pendingPenaltyType) {
+            (0, game_1.drawCard)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+        }
+        else if (curRoom.gameState.drawnCardId || curRoom.gameState.canPassTurn) {
+            (0, game_1.passTurn)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+        }
+        else {
+            (0, game_1.drawCard)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+            if (playerIds[curRoom.gameState.currentTurnIndex] === currentTurnPlayerId) {
+                (0, game_1.passTurn)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+            }
+        }
+        curRoom.gameState.logs.unshift({
+            id: Math.random().toString(),
+            text: `⏳ ${name}'s 20s ran out! Turn passed.`,
+            privateText: `⏳ Your 20s ran out! Turn passed.`,
+            playerId: currentTurnPlayerId,
+            time: Date.now()
+        });
+        io.to(roomId).emit('room-update', curRoom);
+        startTurnTimer(roomId);
+    }, 20000);
+    turnTimers.set(roomId, timer);
+}
 // socket handlers
 io.on('connection', (socket) => {
     // ping-pong for latency ms
@@ -116,6 +167,7 @@ io.on('connection', (socket) => {
     socket.on('start-game', ({ roomId }) => {
         const room = (0, rooms_1.startGame)(roomId, socket.id);
         if (room) {
+            startTurnTimer(roomId);
             io.to(roomId).emit('room-update', room);
         }
     });
@@ -130,6 +182,7 @@ io.on('connection', (socket) => {
     socket.on('restart-game', ({ roomId }) => {
         const room = (0, rooms_1.restartGame)(roomId, socket.id);
         if (room) {
+            startTurnTimer(roomId);
             io.to(roomId).emit('room-update', room);
         }
     });
@@ -137,6 +190,7 @@ io.on('connection', (socket) => {
     socket.on('back-to-lobby', ({ roomId }) => {
         const room = (0, rooms_1.returnToLobby)(roomId, socket.id);
         if (room) {
+            clearTurnTimer(roomId);
             io.to(roomId).emit('room-update', room);
         }
     });
@@ -153,10 +207,14 @@ io.on('connection', (socket) => {
         if (res.success) {
             // update wins
             if (room.gameState.winnerId) {
+                clearTurnTimer(roomId);
                 const winner = room.players.find(p => { var _a; return p.id === ((_a = room.gameState) === null || _a === void 0 ? void 0 : _a.winnerId); });
                 if (winner) {
                     winner.wins = (winner.wins || 0) + 1;
                 }
+            }
+            else {
+                startTurnTimer(roomId);
             }
             io.to(roomId).emit('room-update', room);
         }
@@ -175,6 +233,7 @@ io.on('connection', (socket) => {
         const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
         const res = (0, game_1.drawCard)(room.gameState, playerIds, socket.id, sender === null || sender === void 0 ? void 0 : sender.name);
         if (res.success) {
+            startTurnTimer(roomId);
             io.to(roomId).emit('room-update', room);
         }
     });
@@ -188,6 +247,7 @@ io.on('connection', (socket) => {
             return;
         const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
         if ((0, game_1.passTurn)(room.gameState, playerIds, socket.id, sender === null || sender === void 0 ? void 0 : sender.name)) {
+            startTurnTimer(roomId);
             io.to(roomId).emit('room-update', room);
         }
     });
@@ -208,6 +268,12 @@ io.on('connection', (socket) => {
         socket.leave(roomId);
         const result = (0, rooms_1.removePlayer)(socket.id);
         if (result) {
+            if (result.room.status !== 'playing' || !result.room.gameState) {
+                clearTurnTimer(result.roomId);
+            }
+            else {
+                startTurnTimer(result.roomId);
+            }
             io.to(result.roomId).emit('room-update', result.room);
         }
     });
@@ -215,6 +281,9 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const result = (0, rooms_1.handleDisconnect)(socket.id);
         if (result) {
+            if (result.room.status !== 'playing' || !result.room.gameState) {
+                clearTurnTimer(result.roomId);
+            }
             io.to(result.roomId).emit('room-update', result.room);
         }
     });

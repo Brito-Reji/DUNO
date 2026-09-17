@@ -32,6 +32,8 @@ interface GameState {
   logs: Array<{ id: string; text: string; time: number }>
   mode: 'normal' | 'flip'
   side: 'light' | 'dark'
+  turnStartedAt?: number
+  turnExpiresAt?: number
 }
 
 interface RoomData {
