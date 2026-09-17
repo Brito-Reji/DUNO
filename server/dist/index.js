@@ -213,7 +213,7 @@ io.on('connection', (socket) => {
     });
     // handle disconnect
     socket.on('disconnect', () => {
-        const result = (0, rooms_1.removePlayer)(socket.id);
+        const result = (0, rooms_1.handleDisconnect)(socket.id);
         if (result) {
             io.to(result.roomId).emit('room-update', result.room);
         }

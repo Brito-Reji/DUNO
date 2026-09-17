@@ -5,6 +5,7 @@ exports.createRoom = createRoom;
 exports.getRoom = getRoom;
 exports.addPlayer = addPlayer;
 exports.updatePlayerPing = updatePlayerPing;
+exports.handleDisconnect = handleDisconnect;
 exports.removePlayer = removePlayer;
 exports.startGame = startGame;
 exports.restartGame = restartGame;
@@ -19,6 +20,8 @@ const game_1 = require("./game");
 exports.rooms = new Map();
 // empty room timers
 const emptyRoomTimers = new Map();
+// player disconnect timers
+const disconnectTimers = new Map();
 // create new room
 function createRoom() {
     const roomId = Math.random().toString(36).substring(2, 8).toLowerCase();
@@ -49,27 +52,59 @@ function addPlayer(roomId, playerId, name) {
         clearTimeout(existingTimer);
         emptyRoomTimers.delete(cleanId);
     }
-    // keep previous wins if reconnecting
-    const existingPlayer = room.players.find(p => p.id === playerId || p.name.toLowerCase() === name.toLowerCase());
-    const prevWins = (existingPlayer === null || existingPlayer === void 0 ? void 0 : existingPlayer.wins) || 0;
-    const wasHost = existingPlayer === null || existingPlayer === void 0 ? void 0 : existingPlayer.isHost;
-    room.players = room.players.filter(p => p.id !== playerId && p.name.toLowerCase() !== name.toLowerCase());
-    const isHost = wasHost !== undefined ? wasHost : room.players.length === 0;
+    const cleanName = (name || '').trim();
+    // cancel disconnect timer if reconnecting
+    const timerKey = `${cleanId}:${cleanName.toLowerCase()}`;
+    const disconnectTimer = disconnectTimers.get(timerKey);
+    if (disconnectTimer) {
+        clearTimeout(disconnectTimer);
+        disconnectTimers.delete(timerKey);
+    }
+    // check if player is reconnecting
+    const existingPlayer = room.players.find(p => p.id === playerId || p.name.toLowerCase() === cleanName.toLowerCase());
+    if (existingPlayer) {
+        const oldId = existingPlayer.id;
+        existingPlayer.id = playerId;
+        existingPlayer.name = cleanName;
+        existingPlayer.isOnline = true;
+        existingPlayer.ping = 20;
+        // rebind game hand and uno status
+        if (room.gameState) {
+            if (oldId !== playerId) {
+                if (room.gameState.hands[oldId]) {
+                    room.gameState.hands[playerId] = room.gameState.hands[oldId];
+                    delete room.gameState.hands[oldId];
+                }
+                if (room.gameState.unoCalls[oldId] !== undefined) {
+                    room.gameState.unoCalls[playerId] = room.gameState.unoCalls[oldId];
+                    delete room.gameState.unoCalls[oldId];
+                }
+            }
+            room.gameState.logs.unshift({
+                id: Math.random().toString(),
+                text: `⚡ ${cleanName} reconnected to the game`,
+                time: Date.now()
+            });
+        }
+        return room;
+    }
+    // add new player
+    const isHost = room.players.length === 0;
     const isSpectator = room.status === 'playing';
     room.players.push({
         id: playerId,
-        name,
+        name: cleanName,
         isHost,
         ping: 20,
         isOnline: true,
-        wins: prevWins,
+        wins: 0,
         isSpectator
     });
     // log spectator join
     if (isSpectator && room.gameState) {
         room.gameState.logs.unshift({
             id: Math.random().toString(),
-            text: `👁 ${name} joined as a spectator`,
+            text: `👁 ${cleanName} joined as a spectator`,
             time: Date.now()
         });
     }
@@ -88,6 +123,34 @@ function updatePlayerPing(roomId, playerId, ping) {
     }
     return null;
 }
+// handle socket disconnect with grace period
+function handleDisconnect(playerId) {
+    for (const [roomId, room] of exports.rooms.entries()) {
+        const player = room.players.find(p => p.id === playerId);
+        if (player) {
+            player.isOnline = false;
+            // grace period if game is active
+            if (room.status === 'playing' && !player.isSpectator) {
+                const timerKey = `${roomId}:${player.name.toLowerCase()}`;
+                if (disconnectTimers.has(timerKey)) {
+                    clearTimeout(disconnectTimers.get(timerKey));
+                }
+                const timer = setTimeout(() => {
+                    disconnectTimers.delete(timerKey);
+                    const curRoom = exports.rooms.get(roomId);
+                    const curPlayer = curRoom === null || curRoom === void 0 ? void 0 : curRoom.players.find(p => p.name.toLowerCase() === player.name.toLowerCase());
+                    if (curPlayer && !curPlayer.isOnline) {
+                        removePlayer(curPlayer.id);
+                    }
+                }, 30000);
+                disconnectTimers.set(timerKey, timer);
+                return { roomId, room };
+            }
+            return removePlayer(playerId);
+        }
+    }
+    return null;
+}
 // remove player
 function removePlayer(playerId) {
     for (const [roomId, room] of exports.rooms.entries()) {
@@ -97,6 +160,11 @@ function removePlayer(playerId) {
             const playerName = player.name;
             const wasHost = player.isHost;
             const wasSpectator = player.isSpectator;
+            const timerKey = `${roomId}:${playerName.toLowerCase()}`;
+            if (disconnectTimers.has(timerKey)) {
+                clearTimeout(disconnectTimers.get(timerKey));
+                disconnectTimers.delete(timerKey);
+            }
             room.players.splice(playerIndex, 1);
             // assign new host
             if (wasHost && room.players.length > 0) {

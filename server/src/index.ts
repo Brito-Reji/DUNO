@@ -3,7 +3,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { createRoom, getRoom, addPlayer, removePlayer, updatePlayerPing, startGame, restartGame, changeMode, returnToLobby, getAdminOverview, deleteRoom, cleanEmptyRooms, kickPlayer } from './rooms';
+import { createRoom, getRoom, addPlayer, removePlayer, handleDisconnect, updatePlayerPing, startGame, restartGame, changeMode, returnToLobby, getAdminOverview, deleteRoom, cleanEmptyRooms, kickPlayer } from './rooms';
 import { playCard, drawCard, passTurn, callUno } from './game';
 
 const app = express();
@@ -230,7 +230,7 @@ io.on('connection', (socket) => {
 
   // handle disconnect
   socket.on('disconnect', () => {
-    const result = removePlayer(socket.id);
+    const result = handleDisconnect(socket.id);
     if (result) {
       io.to(result.roomId).emit('room-update', result.room);
     }
