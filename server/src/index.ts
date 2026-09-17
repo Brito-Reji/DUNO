@@ -18,6 +18,11 @@ const io = new Server(server, {
   }
 });
 
+// health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
+
 // create room
 app.post('/api/rooms', (req, res) => {
   const roomId = createRoom();
@@ -235,4 +240,15 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3005;
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+
+  // keep-alive self ping
+  const liveUrl = process.env.RENDER_EXTERNAL_URL || process.env.SERVER_URL;
+  if (liveUrl) {
+    const cleanUrl = liveUrl.replace(/\/+$/, '');
+    setInterval(() => {
+      fetch(`${cleanUrl}/api/health`)
+        .then(() => console.log('Keep-alive ping sent'))
+        .catch(() => {});
+    }, 10 * 60 * 1000);
+  }
 });
