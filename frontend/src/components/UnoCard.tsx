@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 export interface Card {
   id: string
   color: 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple' | 'wild'
@@ -19,7 +21,7 @@ interface UnoCardProps {
   isHandFlipped?: boolean
 }
 
-export default function UnoCard({
+function UnoCard({
   card,
   isPlayable = false,
   onClick,
@@ -225,3 +227,5 @@ export default function UnoCard({
     </div>
   )
 }
+
+export default memo(UnoCard)

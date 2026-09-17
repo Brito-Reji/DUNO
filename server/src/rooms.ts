@@ -20,9 +20,12 @@ export interface Room {
 // store active rooms
 export const rooms = new Map<string, Room>();
 
+// empty room timers
+const emptyRoomTimers = new Map<string, NodeJS.Timeout>();
+
 // create new room
 export function createRoom(): string {
-  const roomId = Math.random().toString(36).substring(2, 8);
+  const roomId = Math.random().toString(36).substring(2, 8).toLowerCase();
   rooms.set(roomId, {
     id: roomId,
     createdAt: new Date(),
@@ -35,13 +38,22 @@ export function createRoom(): string {
 
 // get room by id
 export function getRoom(roomId: string): Room | undefined {
-  return rooms.get(roomId);
+  if (!roomId) return undefined;
+  return rooms.get(roomId.trim().toLowerCase());
 }
 
 // add player to room
 export function addPlayer(roomId: string, playerId: string, name: string): Room | null {
-  const room = rooms.get(roomId);
+  const cleanId = (roomId || '').trim().toLowerCase();
+  const room = rooms.get(cleanId);
   if (!room) return null;
+
+  // cancel empty room cleanup
+  const existingTimer = emptyRoomTimers.get(cleanId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    emptyRoomTimers.delete(cleanId);
+  }
 
   // remove existing entry for same socket
   room.players = room.players.filter(p => p.id !== playerId);
@@ -60,7 +72,7 @@ export function addPlayer(roomId: string, playerId: string, name: string): Room 
 
 // update player ping
 export function updatePlayerPing(roomId: string, playerId: string, ping: number): Room | null {
-  const room = rooms.get(roomId);
+  const room = getRoom(roomId);
   if (!room) return null;
 
   const player = room.players.find(p => p.id === playerId);
@@ -105,9 +117,13 @@ export function removePlayer(playerId: string): { roomId: string; room: Room } |
         room.gameState = undefined;
       }
 
-      // remove empty room
+      // delay empty room deletion
       if (room.players.length === 0) {
-        rooms.delete(roomId);
+        const timer = setTimeout(() => {
+          rooms.delete(roomId);
+          emptyRoomTimers.delete(roomId);
+        }, 60000);
+        emptyRoomTimers.set(roomId, timer);
       }
 
       return { roomId, room };
@@ -118,7 +134,7 @@ export function removePlayer(playerId: string): { roomId: string; room: Room } |
 
 // start game
 export function startGame(roomId: string, hostId: string): Room | null {
-  const room = rooms.get(roomId);
+  const room = getRoom(roomId);
   if (!room || room.players.length < 2) return null;
 
   const host = room.players.find(p => p.id === hostId);
@@ -131,7 +147,7 @@ export function startGame(roomId: string, hostId: string): Room | null {
 
 // restart game
 export function restartGame(roomId: string, hostId: string): Room | null {
-  const room = rooms.get(roomId);
+  const room = getRoom(roomId);
   if (!room || room.players.length < 2) return null;
 
   const host = room.players.find(p => p.id === hostId);
@@ -144,7 +160,7 @@ export function restartGame(roomId: string, hostId: string): Room | null {
 
 // change mode
 export function changeMode(roomId: string, hostId: string, mode: 'normal' | 'flip'): Room | null {
-  const room = rooms.get(roomId);
+  const room = getRoom(roomId);
   if (!room || room.status !== 'waiting') return null;
 
   const host = room.players.find(p => p.id === hostId);

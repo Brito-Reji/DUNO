@@ -41,6 +41,7 @@ interface RoomData {
 
 export default function Room() {
   const { roomId } = useParams()
+  const cleanRoomId = (roomId || '').trim().toLowerCase()
   const [status, setStatus] = useState<'loading' | 'found' | 'not-found'>('loading')
   const [username, setUsername] = useState(() => localStorage.getItem('uno_username') || '')
   const [tempUsername, setTempUsername] = useState('')
@@ -55,7 +56,7 @@ export default function Room() {
   // leave room
   const handleLeaveRoom = () => {
     if (socketRef.current) {
-      socketRef.current.emit('leave-room', { roomId })
+      socketRef.current.emit('leave-room', { roomId: cleanRoomId })
       socketRef.current.disconnect()
     }
     navigate('/')
@@ -63,7 +64,11 @@ export default function Room() {
 
   // check if room exists
   useEffect(() => {
-    fetch(`http://localhost:3005/api/rooms/${roomId}`)
+    if (!cleanRoomId) {
+      setStatus('not-found')
+      return
+    }
+    fetch(`/api/rooms/${cleanRoomId}`)
       .then(res => res.json())
       .then(data => {
         if (data.exists) {
@@ -73,27 +78,31 @@ export default function Room() {
         }
       })
       .catch(() => setStatus('not-found'))
-  }, [roomId])
+  }, [cleanRoomId])
 
   // connect socket when room and username are ready
   useEffect(() => {
-    if (status !== 'found' || !username || !roomId) return
+    if (status !== 'found' || !username || !cleanRoomId) return
 
-    const socket = io('http://localhost:3005')
+    const socket = io()
     socketRef.current = socket
 
     // join room
-    socket.emit('join-room', { roomId, username })
+    socket.emit('join-room', { roomId: cleanRoomId, username })
 
     // listen for room updates
     socket.on('room-update', (room: RoomData) => {
       setRoomData(room)
     })
 
-    // listen for ping updates of all players
+    // ping update
     socket.on('ping-update', ({ playerId, ping, isOnline }: { playerId: string; ping: number; isOnline: boolean }) => {
       setRoomData(prev => {
         if (!prev) return prev
+        const player = prev.players.find(p => p.id === playerId)
+        if (player && Math.abs((player.ping || 0) - ping) < 30 && player.isOnline === isOnline) {
+          return prev
+        }
         return {
           ...prev,
           players: prev.players.map(p => p.id === playerId ? { ...p, ping, isOnline } : p)
@@ -101,19 +110,19 @@ export default function Room() {
       })
     })
 
-    // listen for pong response
+    // pong response
     socket.on('pong-check', ({ timestamp }: { timestamp: number }) => {
       const latency = Date.now() - timestamp
       setMyPing(latency)
-      socket.emit('player-ping', { roomId, ping: latency })
+      socket.emit('player-ping', { roomId: cleanRoomId, ping: latency })
     })
 
-    // measure ping regularly
+    // ping interval
     const pingInterval = setInterval(() => {
       if (socket.connected) {
         socket.emit('ping-check', { timestamp: Date.now() })
       }
-    }, 2000)
+    }, 10000)
 
     // initial ping
     socket.emit('ping-check', { timestamp: Date.now() })
@@ -133,7 +142,7 @@ export default function Room() {
       clearInterval(pingInterval)
       socket.disconnect()
     }
-  }, [status, username, roomId])
+  }, [status, username, cleanRoomId])
 
   // save username from prompt
   const handleSaveName = (e: FormEvent) => {
@@ -150,14 +159,14 @@ export default function Room() {
   // start game
   const handleStartGame = () => {
     if (socketRef.current) {
-      socketRef.current.emit('start-game', { roomId })
+      socketRef.current.emit('start-game', { roomId: cleanRoomId })
     }
   }
 
   // change mode
   const handleChangeMode = (mode: 'normal' | 'flip') => {
     if (socketRef.current) {
-      socketRef.current.emit('change-mode', { roomId, mode })
+      socketRef.current.emit('change-mode', { roomId: cleanRoomId, mode })
     }
   }
 

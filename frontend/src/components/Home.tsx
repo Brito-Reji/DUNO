@@ -27,7 +27,7 @@ export default function Home() {
     try {
       setIsCreating(true)
       setError('')
-      const res = await fetch('http://localhost:3005/api/rooms', { method: 'POST' })
+      const res = await fetch('/api/rooms', { method: 'POST' })
       const data = await res.json()
       if (data.roomId) {
         navigate(`/room/${data.roomId}`)
@@ -60,26 +60,13 @@ export default function Home() {
     if (code.includes('/room/')) {
       code = code.split('/room/').pop()?.split('?')[0] || code
     }
+    code = code.replace(/\/+$/, '').trim().toLowerCase()
 
     navigate(`/room/${code}`)
   }
 
   return (
     <div className="home-stage">
-      {/* ambient floating cards */}
-      <div className="ambient-floating-card card-float-1">
-        <div className="mini-card-preview color-red">7</div>
-      </div>
-      <div className="ambient-floating-card card-float-2">
-        <div className="mini-card-preview color-blue">⊘</div>
-      </div>
-      <div className="ambient-floating-card card-float-3">
-        <div className="mini-card-preview color-yellow">+2</div>
-      </div>
-      <div className="ambient-floating-card card-float-4">
-        <div className="mini-card-preview color-green">⇄</div>
-      </div>
-
       <div className="container landing-card">
         <div className="brand-header">
           <div className="uno-logo-badge">UNO</div>

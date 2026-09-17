@@ -528,19 +528,26 @@ export default function GameBoard({
           )}
         </div>
 
-        <div className="cards-fan-container">
+        <div 
+          className="cards-fan-container"
+          onWheel={(e) => {
+            if (e.deltaY !== 0) {
+              e.currentTarget.scrollLeft += e.deltaY
+            }
+          }}
+        >
           {myHand.map((card, idx) => {
             const playable = checkPlayable(card)
             const isJustDrawn = card.id === gameState.drawnCardId
             const total = myHand.length
 
-            // fan curve calculation
+            // fan curve
             const centerIdx = (total - 1) / 2
             const offset = idx - centerIdx
-            const maxRot = total > 12 ? 16 : 22
-            const rotStep = total > 12 ? 2.0 : 3.2
+            const maxRot = total > 10 ? 10 : 16
+            const rotStep = total > 10 ? 1.2 : 2.2
             const rotation = total > 3 ? Math.max(-maxRot, Math.min(maxRot, offset * rotStep)) : 0
-            const translateY = Math.abs(offset) * (total > 12 ? 1.5 : 2.5)
+            const translateY = Math.min(12, Math.abs(offset) * (total > 10 ? 1.2 : 2.0))
 
             return (
               <div 

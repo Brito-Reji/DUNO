@@ -4,4 +4,17 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3005',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:3005',
+        ws: true,
+      },
+    },
+  },
 })
