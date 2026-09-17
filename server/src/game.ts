@@ -1,3 +1,5 @@
+import logger from './utils/logger';
+
 export type CardColor = 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple' | 'wild';
 export type CardValue = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'skip' | 'reverse' | '+2' | 'wild' | '+4' | 'flip' | '+5' | 'skip_everyone' | 'wild_draw_color';
 
@@ -170,11 +172,16 @@ export function initializeGame(playerIds: string[], mode: 'normal' | 'flip' = 'n
 
 // draw cards from deck (reshuffles if low)
 function drawFromDeck(gameState: GameState, count: number): Card[] {
+  logger.debug(`drawFromDeck called with count=${count}, deck size=${gameState.deck.length}, discard size=${gameState.discardPile.length}`);
   const drawn: Card[] = [];
 
   for (let i = 0; i < count; i++) {
     if (gameState.deck.length === 0) {
-      if (gameState.discardPile.length <= 1) break;
+      if (gameState.discardPile.length <= 1) {
+        logger.warn('Deck is empty and discard pile is too small to reshuffle.');
+        break;
+      }
+      logger.info('Deck is empty, reshuffling discard pile into deck.');
       const topCard = gameState.discardPile.pop()!;
       gameState.deck = shuffle(gameState.discardPile);
       gameState.discardPile = [topCard];
@@ -183,6 +190,7 @@ function drawFromDeck(gameState: GameState, count: number): Card[] {
     if (card) drawn.push(card);
   }
 
+  logger.debug(`drawFromDeck returning ${drawn.length} cards`);
   return drawn;
 }
 
@@ -520,28 +528,40 @@ export function drawCard(
 
   // penalty draw
   if (gameState.pendingPenaltyType) {
+    logger.info(`drawCard: ${name} executing penalty draw (type: ${gameState.pendingPenaltyType})`);
     let count = 0;
     const drawn: Card[] = [];
 
     if (gameState.pendingPenaltyType === 'wild_draw_color') {
       const targetColor = gameState.pendingDrawColor;
+      logger.debug(`drawCard: wild_draw_color target is ${targetColor}`);
       let maxDraws = 24; // safety cap to prevent near-infinite loops
       while (maxDraws > 0) {
         const c = drawFromDeck(gameState, 1);
-        if (c.length === 0) break; // deck is completely empty
+        if (c.length === 0) {
+          logger.warn('drawCard: wild_draw_color deck is completely empty');
+          break; // deck is completely empty
+        }
         drawn.push(c[0]);
         count++;
         const activeSide = getActiveSide(c[0], gameState);
-        if (activeSide.color === targetColor) break;
+        logger.debug(`drawCard: wild_draw_color drew ${activeSide.color} ${activeSide.value}`);
+        if (activeSide.color === targetColor) {
+          logger.info(`drawCard: wild_draw_color found target color ${targetColor} after ${count} cards`);
+          break;
+        }
         maxDraws--;
       }
+      if (maxDraws === 0) logger.warn('drawCard: wild_draw_color hit maxDraws safety cap!');
       gameState.pendingDrawColor = null;
     } else {
       count = gameState.accumulatedPenalty;
+      logger.debug(`drawCard: standard penalty, drawing ${count} cards`);
       const c = drawFromDeck(gameState, count);
       drawn.push(...c);
     }
 
+    logger.info(`drawCard: ${name} penalty draw complete. Drew ${count} cards total.`);
     gameState.pendingPenaltyType = null;
     gameState.accumulatedPenalty = 0;
     gameState.drawnCardId = null;

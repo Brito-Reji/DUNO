@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import logger from './utils/logger';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -325,7 +326,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3005;
 server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  logger.info(`Server listening on port ${PORT}`);
 
   // keep-alive self ping
   const liveUrl = process.env.RENDER_EXTERNAL_URL || process.env.SERVER_URL;
@@ -333,7 +334,7 @@ server.listen(PORT, () => {
     const cleanUrl = liveUrl.replace(/\/+$/, '');
     setInterval(() => {
       fetch(`${cleanUrl}/api/health`)
-        .then(() => console.log('Keep-alive ping sent'))
+        .then(() => logger.debug('Keep-alive ping sent'))
         .catch(() => {});
     }, 10 * 60 * 1000);
   }

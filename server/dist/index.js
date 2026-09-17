@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv/config");
 const express_1 = __importDefault(require("express"));
+const logger_1 = __importDefault(require("./utils/logger"));
 const http_1 = __importDefault(require("http"));
 const socket_io_1 = require("socket.io");
 const cors_1 = __importDefault(require("cors"));
@@ -302,14 +303,14 @@ io.on('connection', (socket) => {
 });
 const PORT = process.env.PORT || 3005;
 server.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
+    logger_1.default.info(`Server listening on port ${PORT}`);
     // keep-alive self ping
     const liveUrl = process.env.RENDER_EXTERNAL_URL || process.env.SERVER_URL;
     if (liveUrl) {
         const cleanUrl = liveUrl.replace(/\/+$/, '');
         setInterval(() => {
             fetch(`${cleanUrl}/api/health`)
-                .then(() => console.log('Keep-alive ping sent'))
+                .then(() => logger_1.default.debug('Keep-alive ping sent'))
                 .catch(() => { });
         }, 10 * 60 * 1000);
     }

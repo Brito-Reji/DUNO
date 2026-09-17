@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createDeck = createDeck;
 exports.shuffle = shuffle;
@@ -9,6 +12,7 @@ exports.playCard = playCard;
 exports.drawCard = drawCard;
 exports.passTurn = passTurn;
 exports.callUno = callUno;
+const logger_1 = __importDefault(require("./utils/logger"));
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 const DARK_COLORS = ['orange', 'pink', 'teal', 'purple'];
 // create full uno deck
@@ -124,11 +128,15 @@ function initializeGame(playerIds, mode = 'normal') {
 }
 // draw cards from deck (reshuffles if low)
 function drawFromDeck(gameState, count) {
+    logger_1.default.debug(`drawFromDeck called with count=${count}, deck size=${gameState.deck.length}, discard size=${gameState.discardPile.length}`);
     const drawn = [];
     for (let i = 0; i < count; i++) {
         if (gameState.deck.length === 0) {
-            if (gameState.discardPile.length <= 1)
+            if (gameState.discardPile.length <= 1) {
+                logger_1.default.warn('Deck is empty and discard pile is too small to reshuffle.');
                 break;
+            }
+            logger_1.default.info('Deck is empty, reshuffling discard pile into deck.');
             const topCard = gameState.discardPile.pop();
             gameState.deck = shuffle(gameState.discardPile);
             gameState.discardPile = [topCard];
@@ -137,6 +145,7 @@ function drawFromDeck(gameState, count) {
         if (card)
             drawn.push(card);
     }
+    logger_1.default.debug(`drawFromDeck returning ${drawn.length} cards`);
     return drawn;
 }
 function getActiveSide(card, gameState) {
@@ -151,13 +160,11 @@ function getActiveSide(card, gameState) {
 // check if a card is playable
 function isCardPlayable(card, gameState) {
     const activeSide = getActiveSide(card, gameState);
-    // when penalty is active, both stacking cards and matching cards / wilds are allowed
+    // when penalty is active, ONLY stacking is allowed
     if (gameState.pendingPenaltyType !== null) {
         if (activeSide.value === gameState.pendingPenaltyType)
             return true;
-        if (activeSide.color === 'wild' || activeSide.value === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild_draw_color')
-            return true;
-        return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue;
+        return false;
     }
     // normal check
     if (activeSide.color === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild' || activeSide.value === 'wild_draw_color')
@@ -194,6 +201,9 @@ function playCard(gameState, playerIds, playerId, cardId, chosenColor, playerNam
     const hand = gameState.hands[playerId];
     if (!hand)
         return { success: false, message: 'Player not found' };
+    if (gameState.drawnCardId && gameState.drawnCardId !== cardId) {
+        return { success: false, message: 'You can only play the drawn card or pass' };
+    }
     const cardIndex = hand.findIndex(c => c.id === cardId);
     if (cardIndex === -1)
         return { success: false, message: 'Card not in hand' };
@@ -206,19 +216,12 @@ function playCard(gameState, playerIds, playerId, cardId, chosenColor, playerNam
     // check penalty handling
     const hadPenalty = gameState.pendingPenaltyType !== null;
     const isStacking = hadPenalty && activeSide.value === gameState.pendingPenaltyType;
-    const penaltyToTake = hadPenalty && !isStacking ? gameState.accumulatedPenalty : 0;
+    const penaltyToTake = 0; // Handled strictly via drawCard now.
     // remove card from hand and push to discard
     hand.splice(cardIndex, 1);
     gameState.discardPile.push(card);
     gameState.drawnCardId = null;
     gameState.canPassTurn = false;
-    // if played regular card under penalty, draw penalty cards
-    if (penaltyToTake > 0) {
-        const penaltyDrawn = drawFromDeck(gameState, penaltyToTake);
-        hand.push(...penaltyDrawn);
-        gameState.pendingPenaltyType = null;
-        gameState.accumulatedPenalty = 0;
-    }
     // handle wild color
     let newColor = activeSide.color;
     if (activeSide.color === 'wild') {
@@ -451,10 +454,9 @@ function drawCard(gameState, playerIds, playerId, playerName) {
     if (currentTurnPlayerId !== playerId) {
         return { success: false, drawnCount: 0, isPlayable: false };
     }
-    // if already drew this turn and clicking draw again, pass turn
-    if (gameState.canPassTurn || gameState.drawnCardId) {
-        passTurn(gameState, playerIds, playerId, playerName);
-        return { success: true, drawnCount: 0, isPlayable: false };
+    // if already drew this turn, prevent multiple draws.
+    if (gameState.drawnCardId) {
+        return { success: false, drawnCount: 0, isPlayable: false };
     }
     const hand = gameState.hands[playerId];
     if (!hand)
@@ -462,57 +464,54 @@ function drawCard(gameState, playerIds, playerId, playerName) {
     const name = playerName || 'Player';
     // penalty draw
     if (gameState.pendingPenaltyType) {
+        logger_1.default.info(`drawCard: ${name} executing penalty draw (type: ${gameState.pendingPenaltyType})`);
         let count = 0;
         const drawn = [];
         if (gameState.pendingPenaltyType === 'wild_draw_color') {
             const targetColor = gameState.pendingDrawColor;
-            while (true) {
+            logger_1.default.debug(`drawCard: wild_draw_color target is ${targetColor}`);
+            let maxDraws = 24; // safety cap to prevent near-infinite loops
+            while (maxDraws > 0) {
                 const c = drawFromDeck(gameState, 1);
-                if (c.length === 0)
+                if (c.length === 0) {
+                    logger_1.default.warn('drawCard: wild_draw_color deck is completely empty');
                     break; // deck is completely empty
+                }
                 drawn.push(c[0]);
                 count++;
                 const activeSide = getActiveSide(c[0], gameState);
-                if (activeSide.color === targetColor || activeSide.color === 'wild') {
-                    if (activeSide.color === targetColor)
-                        break;
+                logger_1.default.debug(`drawCard: wild_draw_color drew ${activeSide.color} ${activeSide.value}`);
+                if (activeSide.color === targetColor) {
+                    logger_1.default.info(`drawCard: wild_draw_color found target color ${targetColor} after ${count} cards`);
+                    break;
                 }
+                maxDraws--;
             }
+            if (maxDraws === 0)
+                logger_1.default.warn('drawCard: wild_draw_color hit maxDraws safety cap!');
             gameState.pendingDrawColor = null;
         }
         else {
             count = gameState.accumulatedPenalty;
+            logger_1.default.debug(`drawCard: standard penalty, drawing ${count} cards`);
             const c = drawFromDeck(gameState, count);
             drawn.push(...c);
         }
+        logger_1.default.info(`drawCard: ${name} penalty draw complete. Drew ${count} cards total.`);
         gameState.pendingPenaltyType = null;
         gameState.accumulatedPenalty = 0;
         gameState.drawnCardId = null;
         hand.push(...drawn);
         resetUnoCalls(gameState);
-        // check if player has any playable card in hand
-        const hasAnyPlayable = hand.some(c => isCardPlayable(c, gameState));
-        if (hasAnyPlayable) {
-            gameState.canPassTurn = true;
-            gameState.logs.unshift({
-                id: Math.random().toString(),
-                text: `${name} drew +${count} penalty cards`,
-                privateText: `You drew +${count} penalty cards! Play a card or click draw to skip.`,
-                playerId,
-                time: Date.now()
-            });
-        }
-        else {
-            gameState.logs.unshift({
-                id: Math.random().toString(),
-                text: `${name} drew +${count} penalty cards (no valid moves)`,
-                privateText: `You drew +${count} penalty cards (no valid moves)`,
-                playerId,
-                time: Date.now()
-            });
-            advanceTurn(gameState, playerIds, 1);
-        }
-        return { success: true, drawnCount: count, isPlayable: hasAnyPlayable };
+        gameState.logs.unshift({
+            id: Math.random().toString(),
+            text: `${name} drew +${count} penalty cards`,
+            privateText: `You drew +${count} penalty cards!`,
+            playerId,
+            time: Date.now()
+        });
+        advanceTurn(gameState, playerIds, 1);
+        return { success: true, drawnCount: count, isPlayable: false };
     }
     // single card draw
     const drawn = drawFromDeck(gameState, 1);
@@ -556,6 +555,8 @@ function drawCard(gameState, playerIds, playerId, playerName) {
 function passTurn(gameState, playerIds, playerId, playerName) {
     const currentTurnPlayerId = playerIds[gameState.currentTurnIndex];
     if (currentTurnPlayerId !== playerId)
+        return false;
+    if (!gameState.canPassTurn)
         return false;
     const name = playerName || 'Player';
     gameState.drawnCardId = null;

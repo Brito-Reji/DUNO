@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { BACKEND_URL } from '../utils/config'
+import logger from '../utils/logger'
 
 export default function Home() {
   const [username, setUsername] = useState(() => localStorage.getItem('uno_username') || '')
@@ -34,7 +35,7 @@ export default function Home() {
         navigate(`/room/${data.roomId}`)
       }
     } catch (err) {
-      console.error(err)
+      logger.error('handleCreateRoom error:', err)
       setError('Failed to create room. Please try again.')
     } finally {
       setIsCreating(false)
