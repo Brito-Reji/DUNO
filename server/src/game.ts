@@ -395,7 +395,11 @@ export function playCard(
       time: Date.now()
     });
     if (playerIds.length === 2) {
-      // in 2-player game, skip gives another turn
+      // 2-player: skip gives current player another turn
+      gameState.drawnCardId = null;
+      gameState.canPassTurn = false;
+      gameState.turnStartedAt = Date.now();
+      gameState.turnExpiresAt = Date.now() + 20000;
     } else {
       advanceTurn(gameState, playerIds, 2);
     }
@@ -412,6 +416,10 @@ export function playCard(
       time: Date.now()
     });
     // No advanceTurn, current player goes again.
+    gameState.drawnCardId = null;
+    gameState.canPassTurn = false;
+    gameState.turnStartedAt = Date.now();
+    gameState.turnExpiresAt = Date.now() + 20000;
   } else if (activeSide.value === 'reverse') {
     gameState.direction = (gameState.direction * -1) as 1 | -1;
     gameState.logs.unshift({
@@ -426,7 +434,11 @@ export function playCard(
       time: Date.now()
     });
     if (playerIds.length === 2) {
-      // in 2-player game, reverse works as skip
+      // 2-player: reverse works as skip, current player goes again
+      gameState.drawnCardId = null;
+      gameState.canPassTurn = false;
+      gameState.turnStartedAt = Date.now();
+      gameState.turnExpiresAt = Date.now() + 20000;
     } else {
       advanceTurn(gameState, playerIds, 1);
     }

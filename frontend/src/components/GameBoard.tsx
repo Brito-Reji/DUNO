@@ -356,14 +356,12 @@ export default function GameBoard({
 
     const activeSide = getActiveSide(card);
 
-    // penalty active: can stack or play matching card/wild
+    // penalty active: only stacking is allowed
     if (gameState.pendingPenaltyType !== null) {
-      if (activeSide.value === gameState.pendingPenaltyType) return true
-      if (activeSide.color === 'wild' || activeSide.value === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild_draw_color') return true
-      return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue
+      return activeSide.value === gameState.pendingPenaltyType
     }
 
-    // normal color or value match
+    // normal check
     if (activeSide.color === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild' || activeSide.value === 'wild_draw_color') return true
     return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue
   }
@@ -767,7 +765,10 @@ export default function GameBoard({
           <div className="penalty-flame-banner">
             <span className="flame-icon">🔥</span>
             <span>
-              <strong>{gameState.pendingPenaltyType} Chain:</strong> Stack {gameState.pendingPenaltyType}, play matching color/card (take +{gameState.accumulatedPenalty}), or draw.
+              <strong>{gameState.pendingPenaltyType} Chain:</strong>{' '}
+              {gameState.pendingPenaltyType === 'wild_draw_color'
+                ? 'Stack wild_draw_color or draw until matching color.'
+                : `Stack ${gameState.pendingPenaltyType} or draw +${gameState.accumulatedPenalty} cards.`}
             </span>
           </div>
         )}
@@ -801,7 +802,7 @@ export default function GameBoard({
               {isSpectator 
                 ? 'Draw Deck'
                 : gameState.pendingPenaltyType 
-                ? `Take +${gameState.accumulatedPenalty}` 
+                ? (gameState.pendingPenaltyType === 'wild_draw_color' ? 'Draw Until Color' : `Take +${gameState.accumulatedPenalty}`) 
                 : canPassOrSkip ? 'Skip / Pass' : isMyTurn ? 'Tap to Draw' : 'Draw Deck'}
             </div>
           </div>
