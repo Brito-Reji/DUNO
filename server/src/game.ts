@@ -1,10 +1,12 @@
-export type CardColor = 'red' | 'blue' | 'green' | 'yellow' | 'wild';
-export type CardValue = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'skip' | 'reverse' | '+2' | 'wild' | '+4';
+export type CardColor = 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple' | 'wild';
+export type CardValue = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'skip' | 'reverse' | '+2' | 'wild' | '+4' | 'flip';
 
 export interface Card {
   id: string;
   color: CardColor;
   value: CardValue;
+  light?: { color: CardColor; value: CardValue };
+  dark?: { color: CardColor; value: CardValue };
 }
 
 export interface GameLog {
@@ -14,12 +16,14 @@ export interface GameLog {
 }
 
 export interface GameState {
+  mode: 'normal' | 'flip';
+  side: 'light' | 'dark';
   deck: Card[];
   discardPile: Card[];
   hands: Record<string, Card[]>; // playerId -> cards
   currentTurnIndex: number;
   direction: 1 | -1;
-  activeColor: 'red' | 'blue' | 'green' | 'yellow';
+  activeColor: CardColor;
   activeValue: string;
   accumulatedPenalty: number;
   pendingPenaltyType: '+2' | '+4' | null;
@@ -31,9 +35,10 @@ export interface GameState {
 }
 
 const COLORS: Array<'red' | 'blue' | 'green' | 'yellow'> = ['red', 'blue', 'green', 'yellow'];
+const DARK_COLORS: Array<'orange' | 'pink' | 'teal' | 'purple'> = ['orange', 'pink', 'teal', 'purple'];
 
 // create full uno deck
-export function createDeck(): Card[] {
+export function createDeck(mode: 'normal' | 'flip' = 'normal'): Card[] {
   const deck: Card[] = [];
   let cardId = 0;
 
@@ -62,6 +67,47 @@ export function createDeck(): Card[] {
     deck.push({ id: `card_${cardId++}`, color: 'wild', value: '+4' });
   }
 
+  // If flip mode, we need to add light/dark properties and add flip cards.
+  if (mode === 'flip') {
+    // Add flip cards to the light side deck
+    for (const color of COLORS) {
+      deck.push({ id: `card_${cardId++}`, color, value: 'flip' });
+      deck.push({ id: `card_${cardId++}`, color, value: 'flip' });
+    }
+
+    // Generate dark deck equivalent
+    const darkDeck: Array<{color: CardColor, value: CardValue}> = [];
+    for (const dColor of DARK_COLORS) {
+      darkDeck.push({ color: dColor, value: '0' });
+      for (let num = 1; num <= 9; num++) {
+        const val = num.toString() as CardValue;
+        darkDeck.push({ color: dColor, value: val });
+        darkDeck.push({ color: dColor, value: val });
+      }
+      const actions: CardValue[] = ['skip', 'reverse', '+2', 'flip'];
+      for (const act of actions) {
+        darkDeck.push({ color: dColor, value: act });
+        darkDeck.push({ color: dColor, value: act });
+      }
+    }
+    for (let i = 0; i < 4; i++) {
+      darkDeck.push({ color: 'wild', value: 'wild' });
+      darkDeck.push({ color: 'wild', value: '+4' });
+    }
+
+    // Shuffle dark deck to assign randomly to light cards
+    const shuffledDark = shuffle(darkDeck);
+    
+    // Assign light and dark properties
+    for (let i = 0; i < deck.length; i++) {
+      const c = deck[i];
+      c.light = { color: c.color, value: c.value };
+      // if dark deck runs out, just fallback to light (should not happen if lengths match)
+      const d = shuffledDark[i] || { color: 'wild', value: 'wild' };
+      c.dark = { color: d.color, value: d.value };
+    }
+  }
+
   // shuffle deck
   return shuffle(deck);
 }
@@ -77,8 +123,8 @@ export function shuffle<T>(array: T[]): T[] {
 }
 
 // initialize new game
-export function initializeGame(playerIds: string[]): GameState {
-  let deck = createDeck();
+export function initializeGame(playerIds: string[], mode: 'normal' | 'flip' = 'normal'): GameState {
+  let deck = createDeck(mode);
   const hands: Record<string, Card[]> = {};
 
   // deal 7 cards each
@@ -91,9 +137,11 @@ export function initializeGame(playerIds: string[]): GameState {
   if (initialCardIndex === -1) initialCardIndex = 0;
   const [startCard] = deck.splice(initialCardIndex, 1);
 
-  const initialColor = (startCard.color === 'wild' ? COLORS[Math.floor(Math.random() * COLORS.length)] : startCard.color) as 'red' | 'blue' | 'green' | 'yellow';
+  const initialColor = (startCard.color === 'wild' ? COLORS[Math.floor(Math.random() * COLORS.length)] : startCard.color) as CardColor;
 
   return {
+    mode,
+    side: 'light',
     deck,
     discardPile: [startCard],
     hands,
@@ -131,18 +179,27 @@ function drawFromDeck(gameState: GameState, count: number): Card[] {
   return drawn;
 }
 
+export function getActiveSide(card: Card, gameState: GameState): { color: CardColor; value: string } {
+  if (gameState.mode === 'flip') {
+    if (gameState.side === 'dark' && card.dark) return card.dark;
+    if (gameState.side === 'light' && card.light) return card.light;
+  }
+  return { color: card.color, value: card.value };
+}
+
 // check if a card is playable
 export function isCardPlayable(card: Card, gameState: GameState): boolean {
+  const activeSide = getActiveSide(card, gameState);
   // when penalty is active, both stacking cards and matching cards / wilds are allowed
   if (gameState.pendingPenaltyType !== null) {
-    if (card.value === gameState.pendingPenaltyType) return true;
-    if (card.value === 'wild' || card.value === '+4') return true;
-    return card.color === gameState.activeColor || card.value === gameState.activeValue;
+    if (activeSide.value === gameState.pendingPenaltyType) return true;
+    if (activeSide.value === 'wild' || activeSide.value === '+4') return true;
+    return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue;
   }
 
   // normal check
-  if (card.value === '+4' || card.value === 'wild') return true;
-  return card.color === gameState.activeColor || card.value === gameState.activeValue;
+  if (activeSide.value === '+4' || activeSide.value === 'wild') return true;
+  return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue;
 }
 
 // advance turn
@@ -160,7 +217,7 @@ export function playCard(
   playerIds: string[],
   playerId: string,
   cardId: string,
-  chosenColor?: 'red' | 'blue' | 'green' | 'yellow'
+  chosenColor?: CardColor
 ): { success: boolean; message?: string } {
   if (gameState.winnerId) return { success: false, message: 'Game has already ended' };
 
@@ -180,9 +237,11 @@ export function playCard(
     return { success: false, message: 'Invalid move according to UNO rules' };
   }
 
+  const activeSide = getActiveSide(card, gameState);
+
   // check penalty handling
   const hadPenalty = gameState.pendingPenaltyType !== null;
-  const isStacking = hadPenalty && card.value === gameState.pendingPenaltyType;
+  const isStacking = hadPenalty && activeSide.value === gameState.pendingPenaltyType;
   const penaltyToTake = hadPenalty && !isStacking ? gameState.accumulatedPenalty : 0;
 
   // remove card from hand and push to discard
@@ -199,13 +258,13 @@ export function playCard(
     gameState.accumulatedPenalty = 0;
   }
 
-  // handle wild & +4 color choice
-  let newColor = card.color;
-  if (card.color === 'wild') {
-    newColor = chosenColor || 'red';
+  // handle wild color
+  let newColor = activeSide.color;
+  if (activeSide.color === 'wild') {
+    newColor = chosenColor || (gameState.side === 'dark' ? 'teal' : 'red');
   }
-  gameState.activeColor = newColor as 'red' | 'blue' | 'green' | 'yellow';
-  gameState.activeValue = card.value;
+  gameState.activeColor = newColor as CardColor;
+  gameState.activeValue = activeSide.value;
 
   // check win
   if (hand.length === 0) {
@@ -219,7 +278,7 @@ export function playCard(
   }
 
   // card effect handling
-  if (card.value === '+2') {
+  if (activeSide.value === '+2') {
     if (isStacking) {
       gameState.accumulatedPenalty += 2;
     } else {
@@ -234,7 +293,7 @@ export function playCard(
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
-  } else if (card.value === '+4') {
+  } else if (activeSide.value === '+4') {
     if (isStacking) {
       gameState.accumulatedPenalty += 4;
     } else {
@@ -249,7 +308,7 @@ export function playCard(
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
-  } else if (card.value === 'skip') {
+  } else if (activeSide.value === 'skip') {
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
@@ -262,7 +321,7 @@ export function playCard(
     } else {
       advanceTurn(gameState, playerIds, 2);
     }
-  } else if (card.value === 'reverse') {
+  } else if (activeSide.value === 'reverse') {
     gameState.direction = (gameState.direction * -1) as 1 | -1;
     gameState.logs.unshift({
       id: Math.random().toString(),
@@ -276,7 +335,7 @@ export function playCard(
     } else {
       advanceTurn(gameState, playerIds, 1);
     }
-  } else if (card.value === 'wild') {
+  } else if (activeSide.value === 'wild') {
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
@@ -285,12 +344,25 @@ export function playCard(
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
+  } else if (activeSide.value === 'flip') {
+    gameState.side = gameState.side === 'light' ? 'dark' : 'light';
+    const newActiveSide = getActiveSide(card, gameState);
+    gameState.activeColor = newActiveSide.color;
+    gameState.activeValue = newActiveSide.value;
+    gameState.logs.unshift({
+      id: Math.random().toString(),
+      text: penaltyToTake > 0
+        ? `Took +${penaltyToTake} penalty & played Flip! Side changed to ${gameState.side.toUpperCase()}`
+        : `Flip played! Side changed to ${gameState.side.toUpperCase()}. New color: ${gameState.activeColor.toUpperCase()}`,
+      time: Date.now()
+    });
+    advanceTurn(gameState, playerIds, 1);
   } else {
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
-        ? `Took +${penaltyToTake} penalty & played ${card.color.toUpperCase()} ${card.value}`
-        : `Played ${card.color.toUpperCase()} ${card.value}`,
+        ? `Took +${penaltyToTake} penalty & played ${activeSide.color.toUpperCase()} ${activeSide.value}`
+        : `Played ${activeSide.color.toUpperCase()} ${activeSide.value}`,
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);

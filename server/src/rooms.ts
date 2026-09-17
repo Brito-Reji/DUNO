@@ -13,6 +13,7 @@ export interface Room {
   createdAt: Date;
   players: Player[];
   status: 'waiting' | 'playing';
+  mode: 'normal' | 'flip';
   gameState?: GameState;
 }
 
@@ -26,7 +27,8 @@ export function createRoom(): string {
     id: roomId,
     createdAt: new Date(),
     players: [],
-    status: 'waiting'
+    status: 'waiting',
+    mode: 'normal'
   });
   return roomId;
 }
@@ -123,7 +125,7 @@ export function startGame(roomId: string, hostId: string): Room | null {
   if (!host || !host.isHost) return null;
 
   room.status = 'playing';
-  room.gameState = initializeGame(room.players.map(p => p.id));
+  room.gameState = initializeGame(room.players.map(p => p.id), room.mode);
   return room;
 }
 
@@ -136,6 +138,18 @@ export function restartGame(roomId: string, hostId: string): Room | null {
   if (!host || !host.isHost) return null;
 
   room.status = 'playing';
-  room.gameState = initializeGame(room.players.map(p => p.id));
+  room.gameState = initializeGame(room.players.map(p => p.id), room.mode);
+  return room;
+}
+
+// change mode
+export function changeMode(roomId: string, hostId: string, mode: 'normal' | 'flip'): Room | null {
+  const room = rooms.get(roomId);
+  if (!room || room.status !== 'waiting') return null;
+
+  const host = room.players.find(p => p.id === hostId);
+  if (!host || !host.isHost) return null;
+
+  room.mode = mode;
   return room;
 }

@@ -18,7 +18,7 @@ interface GameState {
   hands: Record<string, Card[]>
   currentTurnIndex: number
   direction: 1 | -1
-  activeColor: 'red' | 'blue' | 'green' | 'yellow'
+  activeColor: 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple' | 'wild'
   activeValue: string
   accumulatedPenalty: number
   pendingPenaltyType: '+2' | '+4' | null
@@ -27,12 +27,15 @@ interface GameState {
   unoCalls: Record<string, boolean>
   winnerId: string | null
   logs: Array<{ id: string; text: string; time: number }>
+  mode: 'normal' | 'flip'
+  side: 'light' | 'dark'
 }
 
 interface RoomData {
   id: string
   players: Player[]
   status?: 'waiting' | 'playing'
+  mode?: 'normal' | 'flip'
   gameState?: GameState
 }
 
@@ -151,6 +154,13 @@ export default function Room() {
     }
   }
 
+  // change mode
+  const handleChangeMode = (mode: 'normal' | 'flip') => {
+    if (socketRef.current) {
+      socketRef.current.emit('change-mode', { roomId, mode })
+    }
+  }
+
   // copy invite link
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href)
@@ -218,7 +228,7 @@ export default function Room() {
   // in-game arena view
   if (roomData?.status === 'playing' && roomData.gameState) {
     return (
-      <main className="game-wrapper-fullscreen">
+      <main className={`game-wrapper-fullscreen ${roomData.gameState.mode === 'flip' && roomData.gameState.side === 'dark' ? 'theme-dark' : 'theme-light'}`}>
         {gameError && <div className="floating-error">{gameError}</div>}
         <GameBoard
           roomId={roomId!}
@@ -253,6 +263,10 @@ export default function Room() {
       <div className="room-code-display">
         <span>Room Code</span>
         <h2>{roomId}</h2>
+      </div>
+
+      <div className="room-mode-display">
+        <span>Game Mode: <strong>{roomData?.mode === 'flip' ? 'UNO Flip' : 'Normal UNO'}</strong></span>
       </div>
 
       <div className="players-section">
@@ -302,15 +316,31 @@ export default function Room() {
       {/* host play action or waiting status */}
       <div className="host-play-section">
         {isCurrentHost ? (
-          canStartGame ? (
-            <button className="btn btn-play" onClick={handleStartGame}>
-              ▶ Start Game
-            </button>
-          ) : (
-            <div className="waiting-pill">
-              Waiting for at least 1 more player to join (2+ players required)
+          <>
+            <div className="mode-toggle-section" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button 
+                className={`btn ${roomData?.mode !== 'flip' ? 'btn-primary' : 'btn-secondary'}`} 
+                onClick={() => handleChangeMode('normal')}
+              >
+                Normal UNO
+              </button>
+              <button 
+                className={`btn ${roomData?.mode === 'flip' ? 'btn-primary' : 'btn-secondary'}`} 
+                onClick={() => handleChangeMode('flip')}
+              >
+                UNO Flip
+              </button>
             </div>
-          )
+            {canStartGame ? (
+              <button className="btn btn-play" onClick={handleStartGame}>
+                ▶ Start Game
+              </button>
+            ) : (
+              <div className="waiting-pill">
+                Waiting for at least 1 more player to join (2+ players required)
+              </div>
+            )}
+          </>
         ) : (
           <div className="waiting-pill">
             {canStartGame ? 'Waiting for host to start the game...' : 'Waiting for more players to join...'}

@@ -16,7 +16,9 @@ interface GameState {
   hands: Record<string, Card[]>
   currentTurnIndex: number
   direction: 1 | -1
-  activeColor: 'red' | 'blue' | 'green' | 'yellow'
+  mode: 'normal' | 'flip'
+  side: 'light' | 'dark'
+  activeColor: 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple' | 'wild'
   activeValue: string
   accumulatedPenalty: number
   pendingPenaltyType: '+2' | '+4' | null
@@ -38,7 +40,7 @@ interface GameBoardProps {
   onLeaveRoom?: () => void
 }
 
-type ColorChoice = 'red' | 'blue' | 'green' | 'yellow'
+type ColorChoice = 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple'
 
 export default function GameBoard({
   roomId,
@@ -52,6 +54,7 @@ export default function GameBoard({
 }: GameBoardProps) {
   const [selectedWildCard, setSelectedWildCard] = useState<Card | null>(null)
   const [showColorPicker, setShowColorPicker] = useState(false)
+  const [isHandFlipped, setIsHandFlipped] = useState(false)
   const [isMuted, setIsMuted] = useState(sounds.isMuted())
   const [actionNotice, setActionNotice] = useState<string | null>(null)
   const confettiCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -131,28 +134,41 @@ export default function GameBoard({
     }
   }, [gameState.winnerId])
 
+  // helper to get active side for playable check
+  const getActiveSide = (card: Card) => {
+    if (gameState.mode === 'flip') {
+      if (gameState.side === 'dark' && card.dark) return card.dark;
+      if (gameState.side === 'light' && card.light) return card.light;
+    }
+    return { color: card.color, value: card.value };
+  }
+
   // check if card is playable
   const checkPlayable = (card: Card): boolean => {
     if (!isMyTurn || gameState.winnerId) return false
 
+    const activeSide = getActiveSide(card);
+
     // penalty active: can stack or play matching card/wild
     if (gameState.pendingPenaltyType !== null) {
-      if (card.value === gameState.pendingPenaltyType) return true
-      if (card.value === 'wild' || card.value === '+4') return true
-      return card.color === gameState.activeColor || card.value === gameState.activeValue
+      if (activeSide.value === gameState.pendingPenaltyType) return true
+      if (activeSide.value === 'wild' || activeSide.value === '+4') return true
+      return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue
     }
 
     // normal color or value match
-    if (card.value === '+4' || card.value === 'wild') return true
-    return card.color === gameState.activeColor || card.value === gameState.activeValue
+    if (activeSide.value === '+4' || activeSide.value === 'wild') return true
+    return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue
   }
 
   // handle card click
   const handleCardClick = (card: Card) => {
     if (!checkPlayable(card)) return
 
+    const activeSide = getActiveSide(card);
+
     // wild cards require color selection
-    if (card.color === 'wild' || card.value === 'wild' || card.value === '+4') {
+    if (activeSide.color === 'wild' || activeSide.value === 'wild' || activeSide.value === '+4') {
       setSelectedWildCard(card)
       setShowColorPicker(true)
       return
@@ -240,8 +256,10 @@ export default function GameBoard({
   const isMeWinner = winner?.id === currentSocketId
   const canCallUno = (myHand.length === 1 || myHand.length === 2) && !gameState.unoCalls[currentSocketId]
 
+  const isDarkSide = gameState.mode === 'flip' && gameState.side === 'dark'
+
   return (
-    <div className={`game-board-arena arena-theme-${gameState.activeColor}`}>
+    <div className={`game-board-arena arena-theme-${gameState.activeColor} ${isDarkSide ? 'theme-dark theme-dark-flip' : 'theme-light'}`}>
       {/* victory confetti */}
       {winner && <canvas ref={confettiCanvasRef} className="confetti-canvas" />}
 
@@ -310,18 +328,37 @@ export default function GameBoard({
               <p className="color-picker-subtitle">Select the color to dictate the next turn</p>
             </div>
             <div className="color-grid">
-              <button className="color-btn gem-red" onClick={() => handleColorSelect('red')}>
-                <span className="color-gem-label">Ruby Red</span>
-              </button>
-              <button className="color-btn gem-blue" onClick={() => handleColorSelect('blue')}>
-                <span className="color-gem-label">Sapphire Blue</span>
-              </button>
-              <button className="color-btn gem-green" onClick={() => handleColorSelect('green')}>
-                <span className="color-gem-label">Emerald Green</span>
-              </button>
-              <button className="color-btn gem-yellow" onClick={() => handleColorSelect('yellow')}>
-                <span className="color-gem-label">Amber Gold</span>
-              </button>
+              {gameState.mode === 'flip' && gameState.side === 'dark' ? (
+                <>
+                  <button className="color-btn gem-teal" onClick={() => handleColorSelect('teal')}>
+                    <span className="color-gem-label">Neon Teal</span>
+                  </button>
+                  <button className="color-btn gem-orange" onClick={() => handleColorSelect('orange')}>
+                    <span className="color-gem-label">Neon Orange</span>
+                  </button>
+                  <button className="color-btn gem-pink" onClick={() => handleColorSelect('pink')}>
+                    <span className="color-gem-label">Neon Pink</span>
+                  </button>
+                  <button className="color-btn gem-purple" onClick={() => handleColorSelect('purple')}>
+                    <span className="color-gem-label">Neon Purple</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="color-btn gem-red" onClick={() => handleColorSelect('red')}>
+                    <span className="color-gem-label">Ruby Red</span>
+                  </button>
+                  <button className="color-btn gem-blue" onClick={() => handleColorSelect('blue')}>
+                    <span className="color-gem-label">Sapphire Blue</span>
+                  </button>
+                  <button className="color-btn gem-green" onClick={() => handleColorSelect('green')}>
+                    <span className="color-gem-label">Emerald Green</span>
+                  </button>
+                  <button className="color-btn gem-yellow" onClick={() => handleColorSelect('yellow')}>
+                    <span className="color-gem-label">Amber Gold</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -424,6 +461,7 @@ export default function GameBoard({
               card={{ id: 'draw-pile', color: 'red', value: '0' }}
               isDrawPile={true}
               isPlayable={isMyTurn}
+              side={gameState.mode === 'flip' && gameState.side === 'light' ? 'dark' : 'light'}
             />
             <div className={`pile-label-badge ${isMyTurn ? 'badge-my-turn' : ''}`}>
               {gameState.pendingPenaltyType 
@@ -436,7 +474,7 @@ export default function GameBoard({
           {topDiscard && (
             <div className="pile-realistic-stack discard-pile-group">
               <div className={`discard-ambient-ring glow-${gameState.activeColor}`} />
-              <UnoCard card={topDiscard} rotation={-4} />
+              <UnoCard card={topDiscard} rotation={-4} side={gameState.side} />
               <div className="pile-label-badge">
                 Discard Pile
               </div>
@@ -475,6 +513,16 @@ export default function GameBoard({
             <span>Your Hand</span>
             <span className="cards-count-badge">{myHand.length} cards</span>
           </div>
+          {gameState.mode === 'flip' && (
+            <button 
+              className={`btn-peek-flip ${isHandFlipped ? 'peek-active' : ''}`}
+              onClick={() => setIsHandFlipped(!isHandFlipped)}
+              title="Flip hand over to peek at the other side"
+            >
+              <span>↺</span>
+              <span>{isHandFlipped ? 'Showing Flip Side' : 'Peek Flip Side'}</span>
+            </button>
+          )}
           {gameState.unoCalls[currentSocketId] && (
             <span className="uno-active-badge">✦ UNO SAFE</span>
           )}
@@ -509,6 +557,8 @@ export default function GameBoard({
                   isPlayable={playable}
                   onClick={() => handleCardClick(card)}
                   onMouseEnter={() => handleCardHover(playable)}
+                  side={gameState.side}
+                  isHandFlipped={isHandFlipped}
                 />
               </div>
             )

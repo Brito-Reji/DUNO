@@ -2,7 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { createRoom, getRoom, addPlayer, removePlayer, updatePlayerPing, startGame, restartGame } from './rooms';
+import { createRoom, getRoom, addPlayer, removePlayer, updatePlayerPing, startGame, restartGame, changeMode } from './rooms';
 import { playCard, drawCard, passTurn, callUno } from './game';
 
 const app = express();
@@ -61,6 +61,14 @@ io.on('connection', (socket) => {
   // start game
   socket.on('start-game', ({ roomId }) => {
     const room = startGame(roomId, socket.id);
+    if (room) {
+      io.to(roomId).emit('room-update', room);
+    }
+  });
+
+  // change mode
+  socket.on('change-mode', ({ roomId, mode }) => {
+    const room = changeMode(roomId, socket.id, mode);
     if (room) {
       io.to(roomId).emit('room-update', room);
     }

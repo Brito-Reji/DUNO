@@ -22,6 +22,23 @@
   --uno-yellow: #ffde00;
   --uno-yellow-dark: #cc9900;
   --uno-yellow-glow: rgba(255, 222, 0, 0.55);
+
+  /* UNO Flip Dark Colors */
+  --uno-orange: #f26522;
+  --uno-orange-dark: #cc450b;
+  --uno-orange-glow: rgba(242, 101, 34, 0.5);
+
+  --uno-pink: #ed008c;
+  --uno-pink-dark: #a80062;
+  --uno-pink-glow: rgba(237, 0, 140, 0.5);
+
+  --uno-teal: #00a99d;
+  --uno-teal-dark: #007369;
+  --uno-teal-glow: rgba(0, 169, 157, 0.5);
+
+  --uno-purple: #662d91;
+  --uno-purple-dark: #40195e;
+  --uno-purple-glow: rgba(102, 45, 145, 0.5);
   
   --gold-glow: rgba(250, 204, 21, 0.9);
   --gold-glow-soft: rgba(250, 204, 21, 0.35);
@@ -536,36 +553,52 @@ input:focus {
 /* HYPER-REALISTIC UNO CARDS */
 /* ========================================================================= */
 
+/* card base */
 .uno-card-realistic {
   width: 90px;
   height: 132px;
   border-radius: 14px;
-  padding: 4px;
+  padding: 3.5px;
   position: relative;
   user-select: none;
-  box-shadow: 
-    0 14px 32px rgba(0, 0, 0, 0.6),
-    0 2px 10px rgba(0, 0, 0, 0.4),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.6);
   transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.24s ease;
   cursor: default;
   display: inline-block;
   flex-shrink: 0;
+}
+
+/* light side border */
+.uno-card-realistic.card-side-light,
+.uno-card-realistic:not(.card-side-dark) {
   background: #ffffff;
-  border: 2.5px solid #ffffff;
+  border: 3.5px solid #ffffff;
+  box-shadow: 
+    0 12px 28px rgba(0, 0, 0, 0.65),
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+/* dark side border */
+.uno-card-realistic.card-side-dark {
+  background: #050608;
+  border: 3.5px solid #050608;
+  box-shadow: 
+    0 14px 32px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
 }
 
 .uno-card-realistic.small {
   width: 56px;
   height: 82px;
   border-radius: 9px;
-  padding: 3px;
+  padding: 2.5px;
 }
 
 .card-outer-rim {
   width: 100%;
   height: 100%;
-  border-radius: 10px;
+  border-radius: 9px;
   overflow: hidden;
   position: relative;
 }
@@ -573,15 +606,34 @@ input:focus {
 .card-face {
   width: 100%;
   height: 100%;
-  border-radius: 10px;
+  border-radius: 9px;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
 }
 
-/* Vivid authentic UNO card palettes */
+.card-side-light .card-face,
+.uno-card-realistic:not(.card-side-dark) .card-face {
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.25);
+}
+
+.card-side-dark .card-face {
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+/* glossy sheen */
+.card-sheen-gloss {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  border-radius: 9px;
+  background: linear-gradient(130deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 38%, transparent 44%);
+}
+
+/* light side colors */
 .card-color-red .card-face {
   background: radial-gradient(circle at 35% 30%, #ff3b4e 0%, var(--uno-red) 65%, var(--uno-red-dark) 100%);
 }
@@ -594,33 +646,65 @@ input:focus {
 .card-color-yellow .card-face {
   background: radial-gradient(circle at 35% 30%, #fff033 0%, var(--uno-yellow) 65%, var(--uno-yellow-dark) 100%);
 }
+
+/* dark side colors */
+.card-color-orange .card-face {
+  background: radial-gradient(circle at 35% 30%, #ff7b2b 0%, var(--uno-orange) 65%, var(--uno-orange-dark) 100%);
+}
+.card-color-pink .card-face {
+  background: radial-gradient(circle at 35% 30%, #ff2d99 0%, var(--uno-pink) 65%, var(--uno-pink-dark) 100%);
+}
+.card-color-teal .card-face {
+  background: radial-gradient(circle at 35% 30%, #00f0d8 0%, var(--uno-teal) 65%, var(--uno-teal-dark) 100%);
+}
+.card-color-purple .card-face {
+  background: radial-gradient(circle at 35% 30%, #9b4de8 0%, var(--uno-purple) 65%, var(--uno-purple-dark) 100%);
+}
 .card-color-wild .card-face {
-  background: #111827;
+  background: #100f18;
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-/* Iconic tilted central white ellipse */
+/* center oval */
 .card-oval-container {
-  width: 82%;
+  width: 84%;
   height: 62%;
   border-radius: 50%;
   transform: rotate(-28deg);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  background: #ffffff;
+  position: relative;
+  z-index: 2;
 }
 
-.card-oval {
+/* light side oval */
+.card-oval.oval-light,
+.card-side-light .card-oval,
+.uno-card-realistic:not(.card-side-dark) .card-oval {
   width: 100%;
   height: 100%;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, #ffffff 50%, #f1f5f9 100%);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  background: radial-gradient(ellipse at center, #ffffff 45%, #f2f4f8 100%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* dark side oval */
+.card-oval.oval-dark,
+.card-side-dark .card-oval {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #151122 25%, #07060b 100%);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.6);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
 }
 
 .card-oval-content {
@@ -630,12 +714,12 @@ input:focus {
   justify-content: center;
 }
 
-/* Card Numbers & Underlines */
+/* numbers & text */
 .card-num-text {
-  font-size: 2.1rem;
+  font-size: 2.15rem;
   font-weight: 900;
   font-style: italic;
-  letter-spacing: -1px;
+  letter-spacing: -1.2px;
   line-height: 1;
 }
 
@@ -651,31 +735,73 @@ input:focus {
 }
 
 .card-action-text {
-  font-size: 1.75rem;
+  font-size: 1.8rem;
   font-weight: 900;
   font-style: italic;
-  letter-spacing: -1px;
+  letter-spacing: -1.2px;
 }
 
-/* In-oval colors */
-.card-color-red .card-num-text, .card-color-red .card-action-text { color: var(--uno-red); }
-.card-color-blue .card-num-text, .card-color-blue .card-action-text { color: var(--uno-blue); }
-.card-color-green .card-num-text, .card-color-green .card-action-text { color: var(--uno-green); }
-.card-color-yellow .card-num-text, .card-color-yellow .card-action-text { color: var(--uno-yellow-dark); }
-.card-color-wild .card-num-text, .card-color-wild .card-action-text { color: #0f172a; }
+/* light side in-oval colors */
+.card-side-light.card-color-red .card-num-text, .card-side-light.card-color-red .card-action-text,
+.card-color-red:not(.card-side-dark) .card-num-text, .card-color-red:not(.card-side-dark) .card-action-text {
+  color: var(--uno-red);
+  text-shadow: 1.5px 1.5px 0 rgba(0,0,0,0.25);
+}
+.card-side-light.card-color-blue .card-num-text, .card-side-light.card-color-blue .card-action-text,
+.card-color-blue:not(.card-side-dark) .card-num-text, .card-color-blue:not(.card-side-dark) .card-action-text {
+  color: var(--uno-blue);
+  text-shadow: 1.5px 1.5px 0 rgba(0,0,0,0.25);
+}
+.card-side-light.card-color-green .card-num-text, .card-side-light.card-color-green .card-action-text,
+.card-color-green:not(.card-side-dark) .card-num-text, .card-color-green:not(.card-side-dark) .card-action-text {
+  color: var(--uno-green);
+  text-shadow: 1.5px 1.5px 0 rgba(0,0,0,0.25);
+}
+.card-side-light.card-color-yellow .card-num-text, .card-side-light.card-color-yellow .card-action-text,
+.card-color-yellow:not(.card-side-dark) .card-num-text, .card-color-yellow:not(.card-side-dark) .card-action-text {
+  color: #cc9200;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+}
 
-/* SVG Vector Icons for Skip and Reverse */
+/* dark side in-oval colors */
+.card-side-dark.card-color-teal .card-num-text, .card-side-dark.card-color-teal .card-action-text {
+  color: #00ffff;
+  text-shadow: 0 0 10px rgba(0,255,255,0.85), 0 0 20px rgba(0,200,179,0.5), 1px 1px 2px #000;
+}
+.card-side-dark.card-color-orange .card-num-text, .card-side-dark.card-color-orange .card-action-text {
+  color: #ff7700;
+  text-shadow: 0 0 10px rgba(255,119,0,0.85), 0 0 20px rgba(255,94,0,0.5), 1px 1px 2px #000;
+}
+.card-side-dark.card-color-pink .card-num-text, .card-side-dark.card-color-pink .card-action-text {
+  color: #ff007f;
+  text-shadow: 0 0 10px rgba(255,0,127,0.85), 0 0 20px rgba(230,0,126,0.5), 1px 1px 2px #000;
+}
+.card-side-dark.card-color-purple .card-num-text, .card-side-dark.card-color-purple .card-action-text {
+  color: #c744fc;
+  text-shadow: 0 0 10px rgba(199,68,252,0.85), 0 0 20px rgba(123,44,191,0.5), 1px 1px 2px #000;
+}
+.card-side-dark.card-color-wild .card-num-text, .card-side-dark.card-color-wild .card-action-text {
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(255,255,255,0.85), 1px 1px 2px #000;
+}
+
+/* card svg icons */
 .card-svg-icon {
   width: 32px;
   height: 32px;
 }
-.card-color-red .card-svg-icon { stroke: var(--uno-red); }
-.card-color-blue .card-svg-icon { stroke: var(--uno-blue); }
-.card-color-green .card-svg-icon { stroke: var(--uno-green); }
-.card-color-yellow .card-svg-icon { stroke: var(--uno-yellow-dark); }
-.card-color-wild .card-svg-icon { stroke: #0f172a; }
+.card-side-light .card-color-red .card-svg-icon, .card-color-red:not(.card-side-dark) .card-svg-icon { stroke: var(--uno-red); fill: var(--uno-red); }
+.card-side-light .card-color-blue .card-svg-icon, .card-color-blue:not(.card-side-dark) .card-svg-icon { stroke: var(--uno-blue); fill: var(--uno-blue); }
+.card-side-light .card-color-green .card-svg-icon, .card-color-green:not(.card-side-dark) .card-svg-icon { stroke: var(--uno-green); fill: var(--uno-green); }
+.card-side-light .card-color-yellow .card-svg-icon, .card-color-yellow:not(.card-side-dark) .card-svg-icon { stroke: #cc9200; fill: #cc9200; }
 
-/* Wild 4-Quadrant Jewel Disc */
+.card-side-dark.card-color-teal .card-svg-icon { stroke: #00ffff; fill: #00ffff; filter: drop-shadow(0 0 6px #00ffff); }
+.card-side-dark.card-color-orange .card-svg-icon { stroke: #ff7700; fill: #ff7700; filter: drop-shadow(0 0 6px #ff7700); }
+.card-side-dark.card-color-pink .card-svg-icon { stroke: #ff007f; fill: #ff007f; filter: drop-shadow(0 0 6px #ff007f); }
+.card-side-dark.card-color-purple .card-svg-icon { stroke: #c744fc; fill: #c744fc; filter: drop-shadow(0 0 6px #c744fc); }
+.card-side-dark.card-color-wild .card-svg-icon { stroke: #ffffff; fill: #ffffff; filter: drop-shadow(0 0 6px #ffffff); }
+
+/* wild jewel disc */
 .wild-disc-container {
   display: flex;
   flex-direction: column;
@@ -698,6 +824,11 @@ input:focus {
 .quad.q-yellow { background: var(--uno-yellow); }
 .quad.q-green { background: var(--uno-green); }
 
+.quad.q-teal { background: var(--uno-teal); }
+.quad.q-orange { background: var(--uno-orange); }
+.quad.q-pink { background: var(--uno-pink); }
+.quad.q-purple { background: var(--uno-purple); }
+
 .wild-disc-text {
   font-size: 0.62rem;
   font-weight: 900;
@@ -705,8 +836,11 @@ input:focus {
   color: #0f172a;
   margin-top: 1px;
 }
+.card-side-dark .wild-disc-text {
+  color: #ffffff;
+}
 
-/* +4 Mini Card Fan Cluster */
+/* +4 card cluster */
 .wild-four-cluster {
   position: relative;
   width: 44px;
@@ -730,6 +864,11 @@ input:focus {
 .fan-yellow { background: var(--uno-yellow); transform: translate(4px, -4px) rotate(8deg); }
 .fan-green { background: var(--uno-green); transform: translate(11px, -2px) rotate(22deg); }
 
+.fan-teal { background: var(--uno-teal); transform: translate(-10px, -3px) rotate(-22deg); }
+.fan-orange { background: var(--uno-orange); transform: translate(-3px, -5px) rotate(-7deg); }
+.fan-pink { background: var(--uno-pink); transform: translate(4px, -4px) rotate(8deg); }
+.fan-purple { background: var(--uno-purple); transform: translate(11px, -2px) rotate(22deg); }
+
 .wild-four-badge {
   position: relative;
   z-index: 5;
@@ -740,50 +879,145 @@ input:focus {
   text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 0 2px black;
 }
 
-/* Corner marks */
+/* corner marks */
 .card-corner {
   position: absolute;
   font-size: 0.88rem;
   font-weight: 900;
   color: white;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.85);
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9), 0 0 1px #000;
   display: flex;
   align-items: center;
   justify-content: center;
   font-style: italic;
+  z-index: 3;
 }
 
 .corner-tl { top: 5px; left: 7px; }
 .corner-br { bottom: 5px; right: 7px; transform: rotate(180deg); }
 
-.card-sheen {
-  display: none;
+/* flip peek tab */
+.flip-peek-tab {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  font-style: italic;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
+  transition: transform 0.18s ease;
+  pointer-events: auto;
 }
 
-/* Authentic UNO Card Back */
-.uno-card-back {
-  background: #0a0e1a;
-  border: 2px solid #ed1c24;
+.flip-peek-tab:hover {
+  transform: scale(1.15);
+}
+
+.flip-peek-tab .peek-icon {
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.flip-peek-tab.peek-side-dark {
+  border: 1.5px solid #050608;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+}
+.flip-peek-tab.peek-side-dark.peek-col-teal { background: var(--uno-teal); }
+.flip-peek-tab.peek-side-dark.peek-col-orange { background: var(--uno-orange); }
+.flip-peek-tab.peek-side-dark.peek-col-pink { background: var(--uno-pink); }
+.flip-peek-tab.peek-side-dark.peek-col-purple { background: var(--uno-purple); }
+.flip-peek-tab.peek-side-dark.peek-col-wild { background: #161222; }
+
+.flip-peek-tab.peek-side-light {
+  border: 1.5px solid #ffffff;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+}
+.flip-peek-tab.peek-side-light.peek-col-red { background: var(--uno-red); }
+.flip-peek-tab.peek-side-light.peek-col-blue { background: var(--uno-blue); }
+.flip-peek-tab.peek-side-light.peek-col-green { background: var(--uno-green); }
+.flip-peek-tab.peek-side-light.peek-col-yellow { background: var(--uno-yellow); color: #111; text-shadow: none; }
+.flip-peek-tab.peek-side-light.peek-col-wild { background: #161222; }
+
+/* peek hand button */
+.btn-peek-flip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #f1f5f9;
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-peek-flip:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.btn-peek-flip.peek-active {
+  background: linear-gradient(135deg, #7b2cbf 0%, #ff007f 100%);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 0 16px rgba(255, 0, 127, 0.55);
+}
+
+/* card backs */
+.uno-card-back.card-side-light,
+.uno-card-back.back-light {
+  background: #ffffff;
+  border: 3.5px solid #ffffff;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.65);
+}
+
+.uno-card-back.card-side-dark,
+.uno-card-back.back-dark {
+  background: #050608;
+  border: 3.5px solid #050608;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.9);
 }
 
 .card-face-back {
   width: 100%;
   height: 100%;
-  background: radial-gradient(ellipse at center, #1b2336 0%, #080c16 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.back-light .card-face-back,
+.uno-card-back:not(.back-dark) .card-face-back {
+  background: radial-gradient(ellipse at center, #2e0d10 0%, #0d0405 100%);
+}
+
+.back-dark .card-face-back {
+  background: radial-gradient(ellipse at center, #1a0f28 0%, #08040d 100%);
 }
 
 .card-back-pattern {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
   background-size: 5px 5px;
 }
 
-.card-back-oval {
+.card-back-oval.oval-light,
+.card-back-oval:not(.oval-dark) {
   width: 86%;
   height: 60%;
   background: linear-gradient(135deg, #ed1c24 0%, #a80e14 100%);
@@ -793,16 +1027,39 @@ input:focus {
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 12px rgba(0,0,0,0.55), inset 0 2px 4px rgba(255,255,255,0.35);
-  border: 1.5px solid rgba(255,255,255,0.5);
+  border: 1.5px solid rgba(255,255,255,0.6);
 }
 
-.card-back-text {
+.card-back-oval.oval-dark {
+  width: 86%;
+  height: 60%;
+  background: linear-gradient(135deg, #1b1228 0%, #0b0712 100%);
+  border-radius: 50%;
+  transform: rotate(-28deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.85), 0 0 12px rgba(255,0,127,0.4);
+  border: 2px solid #00f0ff;
+}
+
+.card-back-text.text-light,
+.card-back-text:not(.text-dark) {
   color: #ffde00;
   font-weight: 900;
   font-size: 1.45rem;
   letter-spacing: 1px;
   font-style: italic;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.85);
+}
+
+.card-back-text.text-dark {
+  color: #ff007f;
+  font-weight: 900;
+  font-size: 1.15rem;
+  letter-spacing: 1px;
+  font-style: italic;
+  text-shadow: 0 0 8px rgba(255,0,127,0.85), 2px 2px 4px #000;
 }
 
 /* Playable Aura and Physics */
@@ -861,12 +1118,18 @@ input:focus {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 36px;
   padding: 1rem 1.4rem;
+  transition: background 0.8s ease;
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.85);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   position: relative;
   overflow: hidden;
+}
+
+.theme-dark .game-board-arena {
+  background: rgba(26, 11, 26, 0.88);
+  border: 1px solid rgba(180, 80, 200, 0.15);
 }
 
 /* Top Meta Header Bar */
@@ -1635,6 +1898,22 @@ input:focus {
 .color-btn.gem-yellow {
   background: radial-gradient(circle at 35% 30%, #fff566, var(--uno-yellow) 60%, #997300 100%);
   box-shadow: 0 10px 28px rgba(255, 222, 0, 0.55);
+}
+.color-btn.gem-teal {
+  background: radial-gradient(circle at 35% 30%, #00ffff, var(--uno-teal) 60%, #004d40 100%);
+  box-shadow: 0 10px 28px rgba(0, 169, 157, 0.65);
+}
+.color-btn.gem-orange {
+  background: radial-gradient(circle at 35% 30%, #ff9068, var(--uno-orange) 60%, #802000 100%);
+  box-shadow: 0 10px 28px rgba(242, 101, 34, 0.65);
+}
+.color-btn.gem-pink {
+  background: radial-gradient(circle at 35% 30%, #ff758c, var(--uno-pink) 60%, #700040 100%);
+  box-shadow: 0 10px 28px rgba(237, 0, 140, 0.65);
+}
+.color-btn.gem-purple {
+  background: radial-gradient(circle at 35% 30%, #c744fc, var(--uno-purple) 60%, #2e0854 100%);
+  box-shadow: 0 10px 28px rgba(102, 45, 145, 0.65);
 }
 
 .color-btn:hover {
