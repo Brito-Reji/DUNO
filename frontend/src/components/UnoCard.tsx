@@ -238,16 +238,7 @@ function UnoCard({
             <span>{renderCorner(activeValue)}</span>
           </div>
 
-          {/* flip peek tab */}
-          {showFlipPreview && opposingProps && !isSmall && (
-            <div 
-              className={`flip-peek-tab peek-side-${opposingSide} peek-col-${opposingProps.color}`}
-              title={`Flip side: ${opposingProps.color} ${opposingProps.value}`}
-            >
-              <span className="peek-icon">↺</span>
-              <span className="peek-label">{renderCorner(opposingProps.value)}</span>
-            </div>
-          )}
+          {/* flip peek tab removed as per user request */}
 
           {/* center oval */}
           <div className="card-oval-container">
