@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -33,7 +34,7 @@ app.get('/api/rooms/:roomId', (req, res) => {
   }
 });
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 // admin auth middleware
 const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -47,7 +48,7 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
 // admin login
 app.post('/api/admin/login', (req, res) => {
   const { password } = req.body;
-  if (password === ADMIN_PASSWORD || password === 'admin123' || password === 'admin') {
+  if (password === ADMIN_PASSWORD) {
     res.json({ success: true, token: ADMIN_PASSWORD });
   } else {
     res.status(401).json({ success: false, message: 'Incorrect admin password' });
@@ -231,7 +232,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 3005;
+const PORT = process.env.PORT || 3005;
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });

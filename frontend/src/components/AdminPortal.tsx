@@ -256,7 +256,7 @@ export default function AdminPortal() {
               <label className="input-label">Admin Password</label>
               <input
                 type="password"
-                placeholder="Enter password (default: admin)"
+                placeholder="Enter admin password"
                 value={loginPassword}
                 onChange={(e) => {
                   setLoginPassword(e.target.value)
