@@ -430,6 +430,19 @@ input:focus {
   border: 1px solid rgba(234, 179, 8, 0.4);
 }
 
+.player-wins-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
 .player-net-status {
   display: flex;
   align-items: center;
@@ -1338,6 +1351,19 @@ input:focus {
   padding: 1px 5px;
   border-radius: 6px;
   line-height: 1.2;
+}
+
+.mini-wins-pill {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 4px;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
 }
 
 .mini-uno-pill {

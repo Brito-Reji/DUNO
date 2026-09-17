@@ -6,6 +6,7 @@ export interface Player {
   isHost: boolean;
   ping?: number;
   isOnline?: boolean;
+  wins?: number;
 }
 
 export interface Room {
@@ -55,16 +56,21 @@ export function addPlayer(roomId: string, playerId: string, name: string): Room 
     emptyRoomTimers.delete(cleanId);
   }
 
-  // remove existing entry for same socket
-  room.players = room.players.filter(p => p.id !== playerId);
+  // keep previous wins if reconnecting
+  const existingPlayer = room.players.find(p => p.id === playerId || p.name.toLowerCase() === name.toLowerCase());
+  const prevWins = existingPlayer?.wins || 0;
+  const wasHost = existingPlayer?.isHost;
 
-  const isHost = room.players.length === 0;
+  room.players = room.players.filter(p => p.id !== playerId && p.name.toLowerCase() !== name.toLowerCase());
+
+  const isHost = wasHost !== undefined ? wasHost : room.players.length === 0;
   room.players.push({
     id: playerId,
     name,
     isHost,
     ping: 20,
-    isOnline: true
+    isOnline: true,
+    wins: prevWins
   });
 
   return room;
@@ -167,5 +173,18 @@ export function changeMode(roomId: string, hostId: string, mode: 'normal' | 'fli
   if (!host || !host.isHost) return null;
 
   room.mode = mode;
+  return room;
+}
+
+// return room to lobby
+export function returnToLobby(roomId: string, hostId: string): Room | null {
+  const room = getRoom(roomId);
+  if (!room) return null;
+
+  const host = room.players.find(p => p.id === hostId);
+  if (!host || !host.isHost) return null;
+
+  room.status = 'waiting';
+  room.gameState = undefined;
   return room;
 }

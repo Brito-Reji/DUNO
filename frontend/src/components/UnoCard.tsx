@@ -8,7 +8,7 @@ export interface Card {
   dark?: { color: string; value: string }
 }
 
-interface UnoCardProps {
+export interface UnoCardProps {
   card: Card
   isPlayable?: boolean
   onClick?: () => void
@@ -17,7 +17,6 @@ interface UnoCardProps {
   isSmall?: boolean
   rotation?: number
   side?: 'light' | 'dark'
-  showFlipPreview?: boolean
   isHandFlipped?: boolean
 }
 
@@ -30,7 +29,6 @@ function UnoCard({
   isSmall = false,
   rotation = 0,
   side = 'light',
-  showFlipPreview = true,
   isHandFlipped = false
 }: UnoCardProps) {
   // determine active side
@@ -38,15 +36,9 @@ function UnoCard({
     ? (side === 'dark' ? 'light' : 'dark') 
     : side
 
-  const opposingSide: 'light' | 'dark' = effectiveSide === 'dark' ? 'light' : 'dark'
-
   const activeProps = effectiveSide === 'dark' && card.dark
     ? card.dark
     : (card.light || { color: card.color, value: card.value })
-
-  const opposingProps = opposingSide === 'dark' && card.dark
-    ? card.dark
-    : (opposingSide === 'light' && card.light ? card.light : null)
 
   const activeColor = activeProps.color
   const activeValue = activeProps.value

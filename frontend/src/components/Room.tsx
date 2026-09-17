@@ -10,6 +10,7 @@ export interface Player {
   isHost: boolean
   ping?: number
   isOnline?: boolean
+  wins?: number
 }
 
 interface GameState {
@@ -298,6 +299,11 @@ export default function Room() {
                 <div className="player-info">
                   <div className="player-name-row">
                     <span className="player-name">{player.name}</span>
+                    {(player.wins || 0) > 0 && (
+                      <span className="player-wins-badge" title={`${player.wins} wins in this room`}>
+                        🏆 {player.wins}
+                      </span>
+                    )}
                     {isMe && <span className="tag tag-you">YOU</span>}
                     {player.isHost && <span className="tag tag-host">👑 HOST</span>}
                   </div>

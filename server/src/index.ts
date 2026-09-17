@@ -2,7 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { createRoom, getRoom, addPlayer, removePlayer, updatePlayerPing, startGame, restartGame, changeMode } from './rooms';
+import { createRoom, getRoom, addPlayer, removePlayer, updatePlayerPing, startGame, restartGame, changeMode, returnToLobby } from './rooms';
 import { playCard, drawCard, passTurn, callUno } from './game';
 
 const app = express();
@@ -82,6 +82,14 @@ io.on('connection', (socket) => {
     }
   });
 
+  // back to lobby
+  socket.on('back-to-lobby', ({ roomId }) => {
+    const room = returnToLobby(roomId, socket.id);
+    if (room) {
+      io.to(roomId).emit('room-update', room);
+    }
+  });
+
   // play card
   socket.on('play-card', ({ roomId, cardId, chosenColor }) => {
     const room = getRoom(roomId);
@@ -90,6 +98,13 @@ io.on('connection', (socket) => {
     const playerIds = room.players.map(p => p.id);
     const res = playCard(room.gameState, playerIds, socket.id, cardId, chosenColor);
     if (res.success) {
+      // update wins
+      if (room.gameState.winnerId) {
+        const winner = room.players.find(p => p.id === room.gameState?.winnerId);
+        if (winner) {
+          winner.wins = (winner.wins || 0) + 1;
+        }
+      }
       io.to(roomId).emit('room-update', room);
     } else {
       socket.emit('game-error', res.message || 'Invalid move');

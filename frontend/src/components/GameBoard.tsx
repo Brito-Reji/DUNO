@@ -286,6 +286,11 @@ export default function GameBoard({
     socket?.emit('restart-game', { roomId })
   }
 
+  // back to lobby
+  const handleBackToLobby = () => {
+    socket?.emit('back-to-lobby', { roomId })
+  }
+
   // toggle mute
   const toggleSound = () => {
     const muted = sounds.toggleMute()
@@ -356,9 +361,14 @@ export default function GameBoard({
               {isMeWinner ? 'Masterful play! You played all your cards first!' : `${winner.name} dominated the table.`}
             </p>
             {isHost ? (
-              <button className="btn btn-play btn-glow" onClick={handleRestart}>
-                ▶ Play Another Round
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
+                <button className="btn btn-play btn-glow" onClick={handleRestart}>
+                  ▶ Play Another Round
+                </button>
+                <button className="btn btn-secondary" onClick={handleBackToLobby}>
+                  🏠 Return to Lobby
+                </button>
+              </div>
             ) : (
               <p className="waiting-pill">Waiting for host to start next round...</p>
             )}
@@ -439,6 +449,11 @@ export default function GameBoard({
                   <span className="player-mini-name">
                     {isMe ? 'You' : player.name}
                   </span>
+                  {(player.wins || 0) > 0 && (
+                    <span className="mini-wins-pill" title={`${player.wins} wins in this room`}>
+                      🏆{player.wins}
+                    </span>
+                  )}
                   <span className="player-mini-cards">
                     {pHand.length}
                   </span>

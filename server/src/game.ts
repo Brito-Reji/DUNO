@@ -392,7 +392,7 @@ export function playCard(
     
     let nextColor = newActiveSide.color;
     if (newActiveSide.color === 'wild') {
-      const colors = gameState.side === 'dark' ? ['orange', 'pink', 'teal', 'purple'] : ['red', 'blue', 'green', 'yellow'];
+      const colors: CardColor[] = gameState.side === 'dark' ? ['orange', 'pink', 'teal', 'purple'] : ['red', 'blue', 'green', 'yellow'];
       nextColor = colors[Math.floor(Math.random() * colors.length)];
     }
     
