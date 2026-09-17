@@ -1,5 +1,5 @@
 export type CardColor = 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple' | 'wild';
-export type CardValue = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'skip' | 'reverse' | '+2' | 'wild' | '+4' | 'flip';
+export type CardValue = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'skip' | 'reverse' | '+2' | 'wild' | '+4' | 'flip' | '+5' | 'skip_everyone' | 'wild_draw_color';
 
 export interface Card {
   id: string;
@@ -26,7 +26,8 @@ export interface GameState {
   activeColor: CardColor;
   activeValue: string;
   accumulatedPenalty: number;
-  pendingPenaltyType: '+2' | '+4' | null;
+  pendingPenaltyType: '+2' | '+4' | '+5' | 'wild_draw_color' | null;
+  pendingDrawColor?: CardColor | null;
   drawnCardId: string | null;
   canPassTurn: boolean;
   unoCalls: Record<string, boolean>;
@@ -84,7 +85,7 @@ export function createDeck(mode: 'normal' | 'flip' = 'normal'): Card[] {
         darkDeck.push({ color: dColor, value: val });
         darkDeck.push({ color: dColor, value: val });
       }
-      const actions: CardValue[] = ['skip', 'reverse', '+2', 'flip'];
+      const actions: CardValue[] = ['skip_everyone', 'reverse', '+5', 'flip'];
       for (const act of actions) {
         darkDeck.push({ color: dColor, value: act });
         darkDeck.push({ color: dColor, value: act });
@@ -92,7 +93,7 @@ export function createDeck(mode: 'normal' | 'flip' = 'normal'): Card[] {
     }
     for (let i = 0; i < 4; i++) {
       darkDeck.push({ color: 'wild', value: 'wild' });
-      darkDeck.push({ color: 'wild', value: '+4' });
+      darkDeck.push({ color: 'wild', value: 'wild_draw_color' });
     }
 
     // Shuffle dark deck to assign randomly to light cards
@@ -308,6 +309,21 @@ export function playCard(
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
+  } else if (activeSide.value === '+5') {
+    if (isStacking) {
+      gameState.accumulatedPenalty += 5;
+    } else {
+      gameState.pendingPenaltyType = '+5';
+      gameState.accumulatedPenalty = 5;
+    }
+    gameState.logs.unshift({
+      id: Math.random().toString(),
+      text: penaltyToTake > 0 
+        ? `Took +${penaltyToTake} penalty & played +5! Stack is now +5`
+        : `+5 played! Stack is now +${gameState.accumulatedPenalty}`,
+      time: Date.now()
+    });
+    advanceTurn(gameState, playerIds, 1);
   } else if (activeSide.value === 'skip') {
     gameState.logs.unshift({
       id: Math.random().toString(),
@@ -321,6 +337,15 @@ export function playCard(
     } else {
       advanceTurn(gameState, playerIds, 2);
     }
+  } else if (activeSide.value === 'skip_everyone') {
+    gameState.logs.unshift({
+      id: Math.random().toString(),
+      text: penaltyToTake > 0
+        ? `Took +${penaltyToTake} penalty & played Skip Everyone!`
+        : `Skip Everyone played! Player gets another turn.`,
+      time: Date.now()
+    });
+    // No advanceTurn, current player goes again.
   } else if (activeSide.value === 'reverse') {
     gameState.direction = (gameState.direction * -1) as 1 | -1;
     gameState.logs.unshift({
@@ -344,11 +369,36 @@ export function playCard(
       time: Date.now()
     });
     advanceTurn(gameState, playerIds, 1);
+  } else if (activeSide.value === 'wild_draw_color') {
+    gameState.pendingPenaltyType = 'wild_draw_color';
+    gameState.pendingDrawColor = newColor as CardColor;
+    gameState.logs.unshift({
+      id: Math.random().toString(),
+      text: penaltyToTake > 0
+        ? `Took +${penaltyToTake} penalty & played Wild Draw Color (${newColor.toUpperCase()})`
+        : `Wild Draw Color played! Next player draws until ${newColor.toUpperCase()}`,
+      time: Date.now()
+    });
+    advanceTurn(gameState, playerIds, 1);
   } else if (activeSide.value === 'flip') {
     gameState.side = gameState.side === 'light' ? 'dark' : 'light';
-    const newActiveSide = getActiveSide(card, gameState);
-    gameState.activeColor = newActiveSide.color;
+    
+    // Flip discard pile and draw pile
+    gameState.discardPile.reverse();
+    gameState.deck.reverse();
+    
+    const newTopCard = gameState.discardPile[gameState.discardPile.length - 1];
+    const newActiveSide = getActiveSide(newTopCard, gameState);
+    
+    let nextColor = newActiveSide.color;
+    if (newActiveSide.color === 'wild') {
+      const colors = gameState.side === 'dark' ? ['orange', 'pink', 'teal', 'purple'] : ['red', 'blue', 'green', 'yellow'];
+      nextColor = colors[Math.floor(Math.random() * colors.length)];
+    }
+    
+    gameState.activeColor = nextColor as CardColor;
     gameState.activeValue = newActiveSide.value;
+
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: penaltyToTake > 0
@@ -391,12 +441,32 @@ export function drawCard(gameState: GameState, playerIds: string[], playerId: st
 
   // penalty draw
   if (gameState.pendingPenaltyType) {
-    const count = gameState.accumulatedPenalty;
+    let count = 0;
+    const drawn: Card[] = [];
+
+    if (gameState.pendingPenaltyType === 'wild_draw_color') {
+      const targetColor = gameState.pendingDrawColor;
+      while (true) {
+        const c = drawFromDeck(gameState, 1);
+        if (c.length === 0) break; // deck is completely empty
+        drawn.push(c[0]);
+        count++;
+        const activeSide = getActiveSide(c[0], gameState);
+        if (activeSide.color === targetColor || activeSide.color === 'wild') { // Wild counts as any color usually, but let's strictly require the exact color for "wild_draw_color"? Actually rules say draw until you get a card of that color. A wild isn't that color. Let's just strictly match color.
+          if (activeSide.color === targetColor) break;
+        }
+      }
+      gameState.pendingDrawColor = null;
+    } else {
+      count = gameState.accumulatedPenalty;
+      const c = drawFromDeck(gameState, count);
+      drawn.push(...c);
+    }
+
     gameState.pendingPenaltyType = null;
     gameState.accumulatedPenalty = 0;
     gameState.drawnCardId = null;
 
-    const drawn = drawFromDeck(gameState, count);
     hand.push(...drawn);
 
     // check if player has any playable card in hand

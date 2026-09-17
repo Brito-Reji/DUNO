@@ -3,7 +3,7 @@ import { memo } from 'react'
 export interface Card {
   id: string
   color: 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple' | 'wild'
-  value: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'skip' | 'reverse' | '+2' | 'wild' | '+4' | 'flip'
+  value: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'skip' | 'reverse' | '+2' | 'wild' | '+4' | 'flip' | '+5' | 'skip_everyone' | 'wild_draw_color'
   light?: { color: string; value: string }
   dark?: { color: string; value: string }
 }
@@ -131,6 +131,19 @@ function UnoCard({
         )
       case '+2':
         return <span className="card-action-text">+2</span>
+      case '+5':
+        return <span className="card-action-text">+5</span>
+      case 'skip_everyone':
+        return (
+          <div className="card-flip-content">
+            <svg viewBox="0 0 32 32" className="card-svg-icon skip-all-svg" fill="currentColor">
+              <circle cx="16" cy="16" r="10" fill="none" stroke="currentColor" strokeWidth="2.5" />
+              <line x1="8.5" y1="8.5" x2="23.5" y2="23.5" stroke="currentColor" strokeWidth="2.5" />
+              <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4 2" />
+            </svg>
+            <span className="card-flip-text" style={{fontSize: '0.6em', marginTop: '2px'}}>SKIP ALL</span>
+          </div>
+        )
       case '+4':
         return (
           <div className={`wild-four-cluster cluster-${curSide}`}>
@@ -150,6 +163,30 @@ function UnoCard({
               </>
             )}
             <span className="wild-four-badge">+4</span>
+          </div>
+        )
+      case 'wild_draw_color':
+        return (
+          <div className="wild-disc-container">
+            <div className={`wild-quad-circle quad-${curSide}`}>
+              {curSide === 'dark' ? (
+                <>
+                  <div className="quad q-teal" />
+                  <div className="quad q-orange" />
+                  <div className="quad q-pink" />
+                  <div className="quad q-purple" />
+                </>
+              ) : (
+                <>
+                  <div className="quad q-red" />
+                  <div className="quad q-blue" />
+                  <div className="quad q-yellow" />
+                  <div className="quad q-green" />
+                </>
+              )}
+            </div>
+            <span className="wild-disc-text" style={{fontSize: '0.8em'}}>WILD</span>
+            <span className="wild-disc-text" style={{fontSize: '0.5em', marginTop: '-2px'}}>DRAW COLOR</span>
           </div>
         )
       case 'wild':
