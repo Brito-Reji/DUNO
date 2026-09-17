@@ -214,7 +214,7 @@ export default function GameBoard({
     updateTimer()
     const interval = setInterval(updateTimer, 200)
     return () => clearInterval(interval)
-  }, [gameState.turnExpiresAt, gameState.turnStartedAt, gameState.currentTurnIndex, gameState.winnerId])
+  }, [gameState])
 
   // mouse drag scroll
   const handleMouseDown = (e: React.MouseEvent) => {
