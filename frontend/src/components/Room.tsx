@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { io, type Socket } from 'socket.io-client'
 import GameBoard from './GameBoard'
 import type { Card } from './UnoCard'
+import { BACKEND_URL } from '../utils/config'
 
 export interface Player {
   id: string
@@ -70,7 +71,7 @@ export default function Room() {
       setStatus('not-found')
       return
     }
-    fetch(`/api/rooms/${cleanRoomId}`)
+    fetch(`${BACKEND_URL}/api/rooms/${cleanRoomId}`)
       .then(res => res.json())
       .then(data => {
         if (data.exists) {
@@ -86,7 +87,7 @@ export default function Room() {
   useEffect(() => {
     if (status !== 'found' || !username || !cleanRoomId) return
 
-    const socket = io()
+    const socket = io(BACKEND_URL || undefined)
     socketRef.current = socket
 
     // join room

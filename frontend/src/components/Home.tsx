@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { BACKEND_URL } from '../utils/config'
 
 export default function Home() {
   const [username, setUsername] = useState(() => localStorage.getItem('uno_username') || '')
@@ -27,7 +28,7 @@ export default function Home() {
     try {
       setIsCreating(true)
       setError('')
-      const res = await fetch('/api/rooms', { method: 'POST' })
+      const res = await fetch(`${BACKEND_URL}/api/rooms`, { method: 'POST' })
       const data = await res.json()
       if (data.roomId) {
         navigate(`/room/${data.roomId}`)

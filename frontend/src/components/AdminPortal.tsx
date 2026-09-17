@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { BACKEND_URL } from '../utils/config'
 
 interface SystemStats {
   uptimeSeconds: number
@@ -87,7 +88,7 @@ export default function AdminPortal() {
     try {
       setIsLoggingIn(true)
       setLoginError('')
-      const res = await fetch('/api/admin/login', {
+      const res = await fetch(`${BACKEND_URL}/api/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: loginPassword })
@@ -121,7 +122,7 @@ export default function AdminPortal() {
 
     try {
       const key = adminKey || localStorage.getItem('uno_admin_key') || ''
-      const res = await fetch('/api/admin/overview', {
+      const res = await fetch(`${BACKEND_URL}/api/admin/overview`, {
         headers: { 'x-admin-key': key }
       })
       if (res.ok) {
@@ -160,7 +161,7 @@ export default function AdminPortal() {
 
     try {
       setTerminatingRoomId(roomId)
-      const res = await fetch(`/api/admin/rooms/${roomId}`, { 
+      const res = await fetch(`${BACKEND_URL}/api/admin/rooms/${roomId}`, { 
         method: 'DELETE',
         headers: { 'x-admin-key': adminKey }
       })
@@ -181,7 +182,7 @@ export default function AdminPortal() {
   const handlePurgeEmptyRooms = async () => {
     try {
       setIsPurging(true)
-      const res = await fetch('/api/admin/cleanup-empty', { 
+      const res = await fetch(`${BACKEND_URL}/api/admin/cleanup-empty`, { 
         method: 'POST',
         headers: { 'x-admin-key': adminKey }
       })
@@ -202,7 +203,7 @@ export default function AdminPortal() {
     if (!confirm) return
 
     try {
-      const res = await fetch(`/api/admin/rooms/${roomId}/kick/${playerId}`, { 
+      const res = await fetch(`${BACKEND_URL}/api/admin/rooms/${roomId}/kick/${playerId}`, { 
         method: 'POST',
         headers: { 'x-admin-key': adminKey }
       })
