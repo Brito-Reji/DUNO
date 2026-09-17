@@ -116,17 +116,23 @@ function startTurnTimer(roomId) {
         const player = curRoom.players.find(p => p.id === currentTurnPlayerId);
         const name = (player === null || player === void 0 ? void 0 : player.name) || 'Player';
         // auto action on timeout
+        let timeoutDrawn = 0;
         if (curRoom.gameState.pendingPenaltyType) {
-            (0, game_1.drawCard)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+            const res = (0, game_1.drawCard)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+            timeoutDrawn = res.drawnCount || 1;
         }
         else if (curRoom.gameState.drawnCardId || curRoom.gameState.canPassTurn) {
             (0, game_1.passTurn)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
         }
         else {
-            (0, game_1.drawCard)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+            const res = (0, game_1.drawCard)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+            timeoutDrawn = res.drawnCount || 1;
             if (playerIds[curRoom.gameState.currentTurnIndex] === currentTurnPlayerId) {
                 (0, game_1.passTurn)(curRoom.gameState, playerIds, currentTurnPlayerId, name);
             }
+        }
+        if (timeoutDrawn > 0) {
+            io.to(roomId).emit('player-drew-cards', { playerId: currentTurnPlayerId, count: timeoutDrawn });
         }
         curRoom.gameState.logs.unshift({
             id: Math.random().toString(),
@@ -205,6 +211,9 @@ io.on('connection', (socket) => {
         const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
         const res = (0, game_1.playCard)(room.gameState, playerIds, socket.id, cardId, chosenColor, sender === null || sender === void 0 ? void 0 : sender.name);
         if (res.success) {
+            if (res.penaltyDrawn && res.penaltyDrawn > 0) {
+                io.to(roomId).emit('player-drew-cards', { playerId: socket.id, count: res.penaltyDrawn });
+            }
             // update wins
             if (room.gameState.winnerId) {
                 clearTurnTimer(roomId);
@@ -233,6 +242,9 @@ io.on('connection', (socket) => {
         const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
         const res = (0, game_1.drawCard)(room.gameState, playerIds, socket.id, sender === null || sender === void 0 ? void 0 : sender.name);
         if (res.success) {
+            if (res.drawnCount > 0) {
+                io.to(roomId).emit('player-drew-cards', { playerId: socket.id, count: res.drawnCount });
+            }
             startTurnTimer(roomId);
             io.to(roomId).emit('room-update', room);
         }

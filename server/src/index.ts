@@ -124,15 +124,22 @@ function startTurnTimer(roomId: string) {
     const name = player?.name || 'Player';
 
     // auto action on timeout
+    let timeoutDrawn = 0;
     if (curRoom.gameState.pendingPenaltyType) {
-      drawCard(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+      const res = drawCard(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+      timeoutDrawn = res.drawnCount || 1;
     } else if (curRoom.gameState.drawnCardId || curRoom.gameState.canPassTurn) {
       passTurn(curRoom.gameState, playerIds, currentTurnPlayerId, name);
     } else {
-      drawCard(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+      const res = drawCard(curRoom.gameState, playerIds, currentTurnPlayerId, name);
+      timeoutDrawn = res.drawnCount || 1;
       if (playerIds[curRoom.gameState.currentTurnIndex] === currentTurnPlayerId) {
         passTurn(curRoom.gameState, playerIds, currentTurnPlayerId, name);
       }
+    }
+
+    if (timeoutDrawn > 0) {
+      io.to(roomId).emit('player-drew-cards', { playerId: currentTurnPlayerId, count: timeoutDrawn });
     }
 
     curRoom.gameState.logs.unshift({
@@ -223,6 +230,10 @@ io.on('connection', (socket) => {
     const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
     const res = playCard(room.gameState, playerIds, socket.id, cardId, chosenColor, sender?.name);
     if (res.success) {
+      if (res.penaltyDrawn && res.penaltyDrawn > 0) {
+        io.to(roomId).emit('player-drew-cards', { playerId: socket.id, count: res.penaltyDrawn });
+      }
+
       // update wins
       if (room.gameState.winnerId) {
         clearTurnTimer(roomId);
@@ -250,6 +261,9 @@ io.on('connection', (socket) => {
     const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
     const res = drawCard(room.gameState, playerIds, socket.id, sender?.name);
     if (res.success) {
+      if (res.drawnCount > 0) {
+        io.to(roomId).emit('player-drew-cards', { playerId: socket.id, count: res.drawnCount });
+      }
       startTurnTimer(roomId);
       io.to(roomId).emit('room-update', room);
     }

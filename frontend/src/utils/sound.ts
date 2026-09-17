@@ -73,6 +73,31 @@ class SoundManager {
     osc.stop(now + 0.1)
   }
 
+  // flying card swoosh
+  public playCardFly(index = 0) {
+    if (this.muted) return
+    this.initCtx()
+    if (!this.ctx) return
+
+    const now = this.ctx.currentTime
+    const osc = this.ctx.createOscillator()
+    const gain = this.ctx.createGain()
+    const baseFreq = 220 + (index % 5) * 45
+
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(baseFreq, now)
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.8, now + 0.09)
+
+    gain.gain.setValueAtTime(0.18, now)
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09)
+
+    osc.connect(gain)
+    gain.connect(this.ctx.destination)
+
+    osc.start(now)
+    osc.stop(now + 0.09)
+  }
+
   // penalty alert sound
   public playPenalty() {
     if (this.muted) return

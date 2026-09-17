@@ -3149,3 +3149,211 @@ input:focus {
   }
 }
 
+/* ========================================================================= */
+/* DYNAMIC CARD DRAW ANIMATIONS */
+/* ========================================================================= */
+
+.flying-cards-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.flying-card-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 54px;
+  height: 80px;
+  opacity: 0;
+  transform-origin: center center;
+  perspective: 900px;
+  animation: dynamicCardFlight 0.58s cubic-bezier(0.22, 0.9, 0.36, 1) forwards;
+  animation-delay: var(--fly-delay, 0ms);
+  will-change: transform, opacity;
+}
+
+@keyframes dynamicCardFlight {
+  0% {
+    transform: translate3d(var(--start-x), var(--start-y), 0) translate(-50%, -50%) scale(0.9) rotate(0deg);
+    opacity: 0;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+  }
+  12% {
+    opacity: 1;
+    transform: translate3d(
+      calc(var(--start-x) + var(--delta-x) * 0.15 + var(--arc-offset) * 0.4),
+      calc(var(--start-y) + var(--delta-y) * 0.15 - 20px),
+      0
+    ) translate(-50%, -50%) scale(1.18) rotate(calc(var(--rot-end) * 0.25));
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(
+      calc(var(--start-x) + var(--delta-x) * 0.55 + var(--arc-offset)),
+      calc(var(--start-y) + var(--delta-y) * 0.55 - 40px),
+      0
+    ) translate(-50%, -50%) scale(1.22) rotate(calc(var(--rot-end) * 0.7));
+    filter: drop-shadow(0 14px 22px rgba(255, 220, 100, 0.45));
+  }
+  85% {
+    opacity: 0.95;
+    transform: translate3d(
+      calc(var(--start-x) + var(--delta-x) * 0.9 + var(--arc-offset) * 0.2),
+      calc(var(--start-y) + var(--delta-y) * 0.9),
+      0
+    ) translate(-50%, -50%) scale(0.75) rotate(var(--rot-end));
+  }
+  100% {
+    transform: translate3d(
+      calc(var(--start-x) + var(--delta-x)),
+      calc(var(--start-y) + var(--delta-y)),
+      0
+    ) translate(-50%, -50%) scale(0.25) rotate(calc(var(--rot-end) + 45deg));
+    opacity: 0;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+}
+
+.flying-card-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.flying-card-light .flying-card-inner {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+}
+
+.flying-card-dark .flying-card-inner {
+  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+  border-color: #2dd4bf;
+  box-shadow: 0 8px 20px rgba(45, 212, 191, 0.4), inset 0 0 0 1px rgba(45, 212, 191, 0.5);
+}
+
+.flying-card-inner::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 65%
+  );
+  pointer-events: none;
+}
+
+.flying-card-oval {
+  width: 78%;
+  height: 52%;
+  background: #facc15;
+  border-radius: 50%;
+  transform: rotate(-25deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  border: 1.5px solid #ffffff;
+}
+
+.flying-card-dark .flying-card-oval {
+  background: #090d16;
+  border-color: #2dd4bf;
+}
+
+.flying-card-text {
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 0.82rem;
+  letter-spacing: -0.5px;
+  color: #ed1c24;
+  text-shadow: 1px 1px 0px #000;
+}
+
+.flying-card-dark .flying-card-text {
+  color: #2dd4bf;
+  text-shadow: 0 0 8px rgba(45, 212, 191, 0.8);
+}
+
+.draw-impact-pulse {
+  animation: playerNodeImpact 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+@keyframes playerNodeImpact {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.8);
+  }
+  35% {
+    transform: scale(1.14) translateY(-3px);
+    box-shadow: 0 0 25px 6px rgba(250, 204, 21, 0.9), 0 0 0 2px #facc15;
+    background: rgba(250, 204, 21, 0.25);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0);
+  }
+}
+
+.cards-bump {
+  animation: cardsNumBump 0.5s ease-out;
+}
+
+@keyframes cardsNumBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.4); color: #facc15; }
+  100% { transform: scale(1); }
+}
+
+.draw-count-badge-float {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.6), 0 0 0 1.5px #ffffff;
+  pointer-events: none;
+  z-index: 100;
+  animation: floatUpFade 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  white-space: nowrap;
+}
+
+@keyframes floatUpFade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.6);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -2px) scale(1.18);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -10px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20px) scale(0.85);
+  }
+}
+
+

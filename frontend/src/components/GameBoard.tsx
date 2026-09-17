@@ -45,6 +45,23 @@ interface GameBoardProps {
   onLeaveRoom?: () => void
 }
 
+interface FlyingCard {
+  id: string
+  startX: number
+  startY: number
+  deltaX: number
+  deltaY: number
+  delayMs: number
+  arcOffset: number
+  rotation: number
+  isDark: boolean
+}
+
+interface PlayerImpact {
+  count: number
+  id: number
+}
+
 type ColorChoice = 'red' | 'blue' | 'green' | 'yellow' | 'orange' | 'pink' | 'teal' | 'purple'
 
 export default function GameBoard({
@@ -64,14 +81,122 @@ export default function GameBoard({
   const [isMuted, setIsMuted] = useState(sounds.isMuted())
   const [actionNotice, setActionNotice] = useState<string | null>(null)
   const [timeLeft, setTimeLeft] = useState<number>(20)
+  const [flyingCards, setFlyingCards] = useState<FlyingCard[]>([])
+  const [playerImpacts, setPlayerImpacts] = useState<Record<string, PlayerImpact>>({})
   const confettiCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const prevTurnRef = useRef<boolean>(false)
   const fanContainerRef = useRef<HTMLDivElement | null>(null)
+  const prevHandsRef = useRef<Record<string, number>>({})
+  const lastAnimatedTimeRef = useRef<Record<string, number>>({})
   const isPointerDownRef = useRef(false)
   const isDraggingRef = useRef(false)
   const startXRef = useRef(0)
   const scrollLeftRef = useRef(0)
   const [isGrabbing, setIsGrabbing] = useState(false)
+
+  // trigger draw cards animation
+  const animateDrawCards = (playerId: string, count: number) => {
+    if (count <= 0) return
+    const drawPileEl = document.getElementById('draw-pile-source')
+    const playerEl = document.getElementById(`player-turn-node-${playerId}`)
+
+    if (!drawPileEl || !playerEl) return
+
+    const drawRect = drawPileEl.getBoundingClientRect()
+    const playerRect = playerEl.getBoundingClientRect()
+
+    const startX = drawRect.left + drawRect.width / 2
+    const startY = drawRect.top + drawRect.height / 2
+    const targetX = playerRect.left + playerRect.width / 2
+    const targetY = playerRect.top + playerRect.height / 2
+
+    const deltaX = targetX - startX
+    const deltaY = targetY - startY
+    const isDark = gameState.mode === 'flip' && gameState.side === 'dark'
+
+    const visualCount = Math.min(count, 8)
+    const newCards: FlyingCard[] = []
+    const batchId = Date.now()
+
+    for (let i = 0; i < visualCount; i++) {
+      const delayMs = i * 65
+      const arcOffset = (Math.random() - 0.5) * 60
+      const rotation = (Math.random() - 0.5) * 50 + (deltaX > 0 ? 20 : -20)
+
+      newCards.push({
+        id: `${batchId}-${i}-${Math.random()}`,
+        startX,
+        startY,
+        deltaX,
+        deltaY,
+        delayMs,
+        arcOffset,
+        rotation,
+        isDark
+      })
+
+      setTimeout(() => {
+        sounds.playCardFly(i)
+      }, delayMs)
+    }
+
+    setFlyingCards(prev => [...prev, ...newCards])
+
+    // impact at target
+    const arrivalTime = (visualCount - 1) * 65 + 380
+    setTimeout(() => {
+      setPlayerImpacts(prev => ({
+        ...prev,
+        [playerId]: { count, id: Date.now() }
+      }))
+    }, arrivalTime)
+
+    // clear impact
+    setTimeout(() => {
+      setPlayerImpacts(prev => {
+        const next = { ...prev }
+        delete next[playerId]
+        return next
+      })
+    }, arrivalTime + 900)
+
+    // remove flying cards
+    setTimeout(() => {
+      setFlyingCards(prev => prev.filter(c => !newCards.some(nc => nc.id === c.id)))
+    }, (visualCount * 65) + 750)
+  }
+
+  // listen for draw events
+  useEffect(() => {
+    if (!socket) return
+
+    const handlePlayerDrew = ({ playerId, count }: { playerId: string; count: number }) => {
+      lastAnimatedTimeRef.current[playerId] = Date.now()
+      animateDrawCards(playerId, count)
+    }
+
+    socket.on('player-drew-cards', handlePlayerDrew)
+    return () => {
+      socket.off('player-drew-cards', handlePlayerDrew)
+    }
+  }, [socket, gameState.mode, gameState.side])
+
+  // fallback for hand count changes
+  useEffect(() => {
+    if (!gameState.hands) return
+    Object.entries(gameState.hands).forEach(([pId, hand]) => {
+      const prevCount = prevHandsRef.current[pId]
+      const currCount = hand.length
+      if (prevCount !== undefined && currCount > prevCount) {
+        const diff = currCount - prevCount
+        const lastTime = lastAnimatedTimeRef.current[pId] || 0
+        if (Date.now() - lastTime > 400 && !gameState.winnerId) {
+          animateDrawCards(pId, diff)
+        }
+      }
+      prevHandsRef.current[pId] = currCount
+    })
+  }, [gameState.hands, gameState.mode, gameState.side, gameState.winnerId])
 
   // 20s turn countdown
   useEffect(() => {
@@ -351,6 +476,33 @@ export default function GameBoard({
       {/* victory confetti */}
       {winner && <canvas ref={confettiCanvasRef} className="confetti-canvas" />}
 
+      {/* Floating Dynamic Flying Cards Layer */}
+      {flyingCards.length > 0 && (
+        <div className="flying-cards-container">
+          {flyingCards.map(card => (
+            <div
+              key={card.id}
+              className={`flying-card-wrapper ${card.isDark ? 'flying-card-dark' : 'flying-card-light'}`}
+              style={{
+                '--start-x': `${card.startX}px`,
+                '--start-y': `${card.startY}px`,
+                '--delta-x': `${card.deltaX}px`,
+                '--delta-y': `${card.deltaY}px`,
+                '--arc-offset': `${card.arcOffset}px`,
+                '--rot-end': `${card.rotation}deg`,
+                '--fly-delay': `${card.delayMs}ms`,
+              } as React.CSSProperties}
+            >
+              <div className="flying-card-inner">
+                <div className="flying-card-oval">
+                  <span className="flying-card-text">{card.isDark ? 'FLIP' : 'UNO'}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Top Header Bar with Room, Sound & Live Ping */}
       <header className="game-top-bar">
         <div className="top-left-badges">
@@ -532,13 +684,21 @@ export default function GameBoard({
             const isOnline = player.isOnline !== false
             const isClockwise = gameState.direction === 1
             const arrowChar = isClockwise ? '➔' : '⬅'
+            const impact = playerImpacts[player.id]
+            const isImpacted = Boolean(impact)
 
             return (
               <div key={player.id} className="turn-node-group">
                 <div 
-                  className={`turn-player-box ${isPlayerTurn ? 'turn-active' : ''} ${isMe ? 'is-self' : ''} ${!isOnline ? 'is-offline' : ''}`}
+                  id={`player-turn-node-${player.id}`}
+                  className={`turn-player-box ${isPlayerTurn ? 'turn-active' : ''} ${isMe ? 'is-self' : ''} ${!isOnline ? 'is-offline' : ''} ${isImpacted ? 'draw-impact-pulse' : ''}`}
                   title={`${player.name} (${pHand.length} cards)`}
                 >
+                  {isImpacted && (
+                    <div className="draw-count-badge-float">
+                      +{impact?.count}
+                    </div>
+                  )}
                   <span className="player-mini-avatar">
                     {player.name.slice(0, 2).toUpperCase()}
                   </span>
@@ -550,7 +710,7 @@ export default function GameBoard({
                       🏆{player.wins}
                     </span>
                   )}
-                  <span className="player-mini-cards">
+                  <span className={`player-mini-cards ${isImpacted ? 'cards-bump' : ''}`}>
                     {pHand.length}
                   </span>
                   {calledUno && <span className="mini-uno-pill">UNO</span>}
@@ -626,6 +786,7 @@ export default function GameBoard({
         <div className="center-piles-desk">
           {/* Realistic 3D Stack Draw Pile */}
           <div 
+            id="draw-pile-source"
             className={`pile-realistic-stack draw-pile-group ${isMyTurn ? 'interactive-draw' : ''}`} 
             onClick={handleDrawCard}
             title={isMyTurn ? (canPassOrSkip ? 'Click to Skip / Pass Turn' : 'Click to Draw Card') : 'Draw Deck'}

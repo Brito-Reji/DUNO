@@ -239,9 +239,11 @@ function playCard(gameState, playerIds, playerId, cardId, chosenColor, playerNam
         return { success: true };
     }
     // check uno penalty
+    let forgotUnoCount = 0;
     if (hand.length === 1 && !gameState.unoCalls[playerId]) {
         const penaltyCards = drawFromDeck(gameState, 2);
         hand.push(...penaltyCards);
+        forgotUnoCount = 2;
         gameState.logs.unshift({
             id: Math.random().toString(),
             text: `⚠️ ${name} forgot to call UNO and drew 2 penalty cards!`,
@@ -439,7 +441,7 @@ function playCard(gameState, playerIds, playerId, cardId, chosenColor, playerNam
         });
         advanceTurn(gameState, playerIds, 1);
     }
-    return { success: true };
+    return { success: true, penaltyDrawn: penaltyToTake + forgotUnoCount };
 }
 // draw card / take penalty
 function drawCard(gameState, playerIds, playerId, playerName) {

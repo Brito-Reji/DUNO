@@ -237,7 +237,7 @@ export function playCard(
   cardId: string,
   chosenColor?: CardColor,
   playerName?: string
-): { success: boolean; message?: string } {
+): { success: boolean; message?: string; penaltyDrawn?: number } {
   if (gameState.winnerId) return { success: false, message: 'Game has already ended' };
 
   const currentTurnPlayerId = playerIds[gameState.currentTurnIndex];
@@ -300,9 +300,11 @@ export function playCard(
   }
 
   // check uno penalty
+  let forgotUnoCount = 0;
   if (hand.length === 1 && !gameState.unoCalls[playerId]) {
     const penaltyCards = drawFromDeck(gameState, 2);
     hand.push(...penaltyCards);
+    forgotUnoCount = 2;
     gameState.logs.unshift({
       id: Math.random().toString(),
       text: `⚠️ ${name} forgot to call UNO and drew 2 penalty cards!`,
@@ -494,7 +496,7 @@ export function playCard(
     advanceTurn(gameState, playerIds, 1);
   }
 
-  return { success: true };
+  return { success: true, penaltyDrawn: penaltyToTake + forgotUnoCount };
 }
 
 // draw card / take penalty
