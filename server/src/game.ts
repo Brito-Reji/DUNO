@@ -197,11 +197,10 @@ export function getActiveSide(card: Card, gameState: GameState): { color: CardCo
 // check if a card is playable
 export function isCardPlayable(card: Card, gameState: GameState): boolean {
   const activeSide = getActiveSide(card, gameState);
-  // when penalty is active, both stacking cards and matching cards / wilds are allowed
+  // when penalty is active, ONLY stacking is allowed
   if (gameState.pendingPenaltyType !== null) {
     if (activeSide.value === gameState.pendingPenaltyType) return true;
-    if (activeSide.color === 'wild' || activeSide.value === 'wild' || activeSide.value === '+4' || activeSide.value === 'wild_draw_color') return true;
-    return activeSide.color === gameState.activeColor || activeSide.value === gameState.activeValue;
+    return false;
   }
 
   // normal check
@@ -248,6 +247,10 @@ export function playCard(
   const hand = gameState.hands[playerId];
   if (!hand) return { success: false, message: 'Player not found' };
 
+  if (gameState.drawnCardId && gameState.drawnCardId !== cardId) {
+    return { success: false, message: 'You can only play the drawn card or pass' };
+  }
+
   const cardIndex = hand.findIndex(c => c.id === cardId);
   if (cardIndex === -1) return { success: false, message: 'Card not in hand' };
 
@@ -262,21 +265,13 @@ export function playCard(
   // check penalty handling
   const hadPenalty = gameState.pendingPenaltyType !== null;
   const isStacking = hadPenalty && activeSide.value === gameState.pendingPenaltyType;
-  const penaltyToTake = hadPenalty && !isStacking ? gameState.accumulatedPenalty : 0;
+  const penaltyToTake = 0; // Handled strictly via drawCard now.
 
   // remove card from hand and push to discard
   hand.splice(cardIndex, 1);
   gameState.discardPile.push(card);
   gameState.drawnCardId = null;
   gameState.canPassTurn = false;
-
-  // if played regular card under penalty, draw penalty cards
-  if (penaltyToTake > 0) {
-    const penaltyDrawn = drawFromDeck(gameState, penaltyToTake);
-    hand.push(...penaltyDrawn);
-    gameState.pendingPenaltyType = null;
-    gameState.accumulatedPenalty = 0;
-  }
 
   // handle wild color
   let newColor = activeSide.color;
@@ -513,10 +508,9 @@ export function drawCard(
     return { success: false, drawnCount: 0, isPlayable: false };
   }
 
-  // if already drew this turn and clicking draw again, pass turn
-  if (gameState.canPassTurn || gameState.drawnCardId) {
-    passTurn(gameState, playerIds, playerId, playerName);
-    return { success: true, drawnCount: 0, isPlayable: false };
+  // if already drew this turn, prevent multiple draws.
+  if (gameState.drawnCardId) {
+    return { success: false, drawnCount: 0, isPlayable: false };
   }
 
   const hand = gameState.hands[playerId];
@@ -531,15 +525,15 @@ export function drawCard(
 
     if (gameState.pendingPenaltyType === 'wild_draw_color') {
       const targetColor = gameState.pendingDrawColor;
-      while (true) {
+      let maxDraws = 24; // safety cap to prevent near-infinite loops
+      while (maxDraws > 0) {
         const c = drawFromDeck(gameState, 1);
         if (c.length === 0) break; // deck is completely empty
         drawn.push(c[0]);
         count++;
         const activeSide = getActiveSide(c[0], gameState);
-        if (activeSide.color === targetColor || activeSide.color === 'wild') {
-          if (activeSide.color === targetColor) break;
-        }
+        if (activeSide.color === targetColor) break;
+        maxDraws--;
       }
       gameState.pendingDrawColor = null;
     } else {
@@ -555,30 +549,16 @@ export function drawCard(
     hand.push(...drawn);
     resetUnoCalls(gameState);
 
-    // check if player has any playable card in hand
-    const hasAnyPlayable = hand.some(c => isCardPlayable(c, gameState));
+    gameState.logs.unshift({
+      id: Math.random().toString(),
+      text: `${name} drew +${count} penalty cards`,
+      privateText: `You drew +${count} penalty cards!`,
+      playerId,
+      time: Date.now()
+    });
+    advanceTurn(gameState, playerIds, 1);
 
-    if (hasAnyPlayable) {
-      gameState.canPassTurn = true;
-      gameState.logs.unshift({
-        id: Math.random().toString(),
-        text: `${name} drew +${count} penalty cards`,
-        privateText: `You drew +${count} penalty cards! Play a card or click draw to skip.`,
-        playerId,
-        time: Date.now()
-      });
-    } else {
-      gameState.logs.unshift({
-        id: Math.random().toString(),
-        text: `${name} drew +${count} penalty cards (no valid moves)`,
-        privateText: `You drew +${count} penalty cards (no valid moves)`,
-        playerId,
-        time: Date.now()
-      });
-      advanceTurn(gameState, playerIds, 1);
-    }
-
-    return { success: true, drawnCount: count, isPlayable: hasAnyPlayable };
+    return { success: true, drawnCount: count, isPlayable: false };
   }
 
   // single card draw
@@ -632,6 +612,7 @@ export function passTurn(
 ): boolean {
   const currentTurnPlayerId = playerIds[gameState.currentTurnIndex];
   if (currentTurnPlayerId !== playerId) return false;
+  if (!gameState.canPassTurn) return false;
 
   const name = playerName || 'Player';
   gameState.drawnCardId = null;
