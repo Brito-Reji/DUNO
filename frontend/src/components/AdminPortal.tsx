@@ -60,6 +60,8 @@ export default function AdminPortal() {
   const [loginError, setLoginError] = useState('')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
 
+  const [mainView, setMainView] = useState<'rooms' | 'logs'>('rooms')
+  const [serverLogs, setServerLogs] = useState<string[]>([])
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [rooms, setRooms] = useState<AdminRoom[]>([])
   const [loading, setLoading] = useState(true)
@@ -131,6 +133,15 @@ export default function AdminPortal() {
         setRooms(data.rooms)
       } else if (res.status === 401) {
         handleLogout()
+        return
+      }
+
+      const logsRes = await fetch(`${BACKEND_URL}/api/admin/logs`, {
+        headers: { 'x-admin-key': key }
+      })
+      if (logsRes.ok) {
+        const logsData = await logsRes.json()
+        setServerLogs(logsData.logs || [])
       }
     } catch (err) {
       console.error(err)
@@ -341,8 +352,39 @@ export default function AdminPortal() {
         </div>
       </header>
 
+      <div className="admin-filter-bar" style={{ marginBottom: '1rem', justifyContent: 'center' }}>
+        <div className="filter-tabs">
+          <button 
+            className={`tab-btn ${mainView === 'rooms' ? 'active' : ''}`}
+            onClick={() => setMainView('rooms')}
+          >
+            📊 Rooms Dashboard
+          </button>
+          <button 
+            className={`tab-btn ${mainView === 'logs' ? 'active' : ''}`}
+            onClick={() => setMainView('logs')}
+          >
+            📋 System Logs
+          </button>
+        </div>
+      </div>
+
+      {mainView === 'logs' && (
+        <section className="admin-logs-section" style={{ padding: '0 2rem 2rem 2rem' }}>
+          <div className="logs-container" style={{ background: '#0d1117', color: '#c9d1d9', padding: '1rem', height: '600px', overflowY: 'auto', fontFamily: 'monospace', borderRadius: '8px', border: '1px solid #30363d', fontSize: '13px' }}>
+            {serverLogs.length === 0 ? <div>No logs available</div> : null}
+            {serverLogs.map((log, i) => {
+              const isError = log.includes('error') || log.includes('WARN');
+              return (
+                <div key={i} style={{ whiteSpace: 'pre-wrap', marginBottom: '0.2rem', color: isError ? '#ff7b72' : 'inherit' }}>{log}</div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
       {/* System Metrics Grid */}
-      {stats && (
+      {mainView === 'rooms' && stats && (
         <section className="admin-stats-grid">
           {/* Memory Metric Card */}
           <div className="admin-metric-card metric-memory">
@@ -405,6 +447,7 @@ export default function AdminPortal() {
       )}
 
       {/* Rooms Explorer Section */}
+      {mainView === 'rooms' && (
       <section className="admin-rooms-section">
         <div className="admin-filter-bar">
           <div className="filter-tabs">
@@ -584,6 +627,7 @@ export default function AdminPortal() {
           </div>
         )}
       </section>
+      )}
     </div>
   )
 }

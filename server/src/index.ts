@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
-import logger from './utils/logger';
+import logger, { getRecentLogs } from './utils/logger';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -65,6 +65,12 @@ app.post('/api/admin/login', (req, res) => {
 app.get('/api/admin/overview', requireAdmin, (req, res) => {
   const overview = getAdminOverview();
   res.json(overview);
+});
+
+// get server logs
+app.get('/api/admin/logs', requireAdmin, (req, res) => {
+  const logs = getRecentLogs();
+  res.json({ logs });
 });
 
 // delete room by admin

@@ -1,4 +1,31 @@
 import winston from 'winston';
+import Transport from 'winston-transport';
+
+const MAX_LOGS = 1000;
+const memoryLogs: string[] = [];
+
+export function getRecentLogs() {
+  return [...memoryLogs]; // return a copy
+}
+
+class MemoryTransport extends Transport {
+  constructor(opts?: Transport.TransportStreamOptions) {
+    super(opts);
+  }
+
+  log(info: any, callback: () => void) {
+    setImmediate(() => {
+      this.emit('logged', info);
+    });
+
+    const msg = `${info.timestamp} ${info.level}: ${info.message} ${info.stack ? `\n${info.stack}` : ''}`;
+    memoryLogs.push(msg);
+    if (memoryLogs.length > MAX_LOGS) {
+      memoryLogs.shift();
+    }
+    callback();
+  }
+}
 
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -22,6 +49,7 @@ const logger = winston.createLogger({
             )
           ),
     }),
+    new MemoryTransport(),
   ],
 });
 
