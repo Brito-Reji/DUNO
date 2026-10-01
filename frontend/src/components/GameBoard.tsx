@@ -471,7 +471,8 @@ export default function GameBoard({
   const winner = players.find(p => p.id === gameState.winnerId)
   const isMeWinner = winner?.id === currentSocketId
   const canCallUno = !gameState.winnerId &&
-    (myHand.length === 1 || myHand.length === 2) &&
+    isMyTurn &&
+    myHand.length === 2 &&
     !gameState.unoCalls[currentSocketId]
 
   const isDarkSide = gameState.mode === 'flip' && gameState.side === 'dark'
