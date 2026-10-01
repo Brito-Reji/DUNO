@@ -103,6 +103,7 @@ function initializeGame(playerIds, roomId, mode = 'normal') {
         initialCardIndex = 0;
     const [startCard] = deck.splice(initialCardIndex, 1);
     const initialColor = (startCard.color === 'wild' ? COLORS[Math.floor(Math.random() * COLORS.length)] : startCard.color);
+    logger_1.default.info(`initializeGame: dealt 7 cards to each of ${playerIds.length} players. Deck remaining: ${deck.length}`, { roomId });
     return {
         roomId,
         mode,
@@ -335,7 +336,11 @@ function playCard(gameState, playerIds, playerId, cardId, chosenColor, playerNam
             time: Date.now()
         });
         if (playerIds.length === 2) {
-            // in 2-player game, skip gives another turn
+            // 2-player: skip gives current player another turn
+            gameState.drawnCardId = null;
+            gameState.canPassTurn = false;
+            gameState.turnStartedAt = Date.now();
+            gameState.turnExpiresAt = Date.now() + 20000;
         }
         else {
             advanceTurn(gameState, playerIds, 2);
@@ -354,6 +359,10 @@ function playCard(gameState, playerIds, playerId, cardId, chosenColor, playerNam
             time: Date.now()
         });
         // No advanceTurn, current player goes again.
+        gameState.drawnCardId = null;
+        gameState.canPassTurn = false;
+        gameState.turnStartedAt = Date.now();
+        gameState.turnExpiresAt = Date.now() + 20000;
     }
     else if (activeSide.value === 'reverse') {
         gameState.direction = (gameState.direction * -1);
@@ -369,7 +378,11 @@ function playCard(gameState, playerIds, playerId, cardId, chosenColor, playerNam
             time: Date.now()
         });
         if (playerIds.length === 2) {
-            // in 2-player game, reverse works as skip
+            // 2-player: reverse works as skip, current player goes again
+            gameState.drawnCardId = null;
+            gameState.canPassTurn = false;
+            gameState.turnStartedAt = Date.now();
+            gameState.turnExpiresAt = Date.now() + 20000;
         }
         else {
             advanceTurn(gameState, playerIds, 1);
@@ -505,6 +518,7 @@ function drawCard(gameState, playerIds, playerId, playerName) {
         gameState.drawnCardId = null;
         hand.push(...drawn);
         resetUnoCalls(gameState);
+        logger_1.default.info(`drawCard: ${name} penalty draw complete. Drew ${count} cards total. Hand size now: ${hand.length}`, { roomId: gameState.roomId });
         gameState.logs.unshift({
             id: Math.random().toString(),
             text: `${name} drew +${count} penalty cards`,
@@ -518,13 +532,16 @@ function drawCard(gameState, playerIds, playerId, playerName) {
     // single card draw
     const drawn = drawFromDeck(gameState, 1);
     if (drawn.length === 0) {
+        logger_1.default.info(`drawCard: ${name} tried to draw 1 card but deck was empty`, { roomId: gameState.roomId });
         advanceTurn(gameState, playerIds, 1);
         return { success: true, drawnCount: 0, isPlayable: false };
     }
     const drawnCard = drawn[0];
     hand.push(drawnCard);
     resetUnoCalls(gameState);
+    const activeSide = getActiveSide(drawnCard, gameState);
     const playable = isCardPlayable(drawnCard, gameState);
+    logger_1.default.info(`drawCard: ${name} drew 1 card [${activeSide.color} ${activeSide.value}]. Playable: ${playable}. Hand size now: ${hand.length}`, { roomId: gameState.roomId });
     if (playable) {
         // allow playing or passing
         gameState.drawnCardId = drawnCard.id;
@@ -576,8 +593,10 @@ function passTurn(gameState, playerIds, playerId, playerName) {
 }
 // call uno
 function callUno(gameState, playerId, playerName) {
+    if (gameState.winnerId)
+        return false;
     const hand = gameState.hands[playerId];
-    if (hand && (hand.length === 1 || hand.length === 2)) {
+    if (hand && (hand.length === 1 || hand.length === 2) && !gameState.unoCalls[playerId]) {
         const name = playerName || 'Player';
         gameState.unoCalls[playerId] = true;
         logger_1.default.info(`callUno: ${name} called UNO!`, { roomId: gameState.roomId });

@@ -78,6 +78,7 @@ export default function GameBoard({
   const [selectedWildCard, setSelectedWildCard] = useState<Card | null>(null)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [isHandFlipped, setIsHandFlipped] = useState(false)
+  const [unoSubmitting, setUnoSubmitting] = useState(false)
   const [isMuted, setIsMuted] = useState(sounds.isMuted())
   const [actionNotice, setActionNotice] = useState<string | null>(null)
   const [timeLeft, setTimeLeft] = useState<number>(20)
@@ -432,8 +433,12 @@ export default function GameBoard({
 
   // call uno
   const handleCallUno = () => {
+    if (unoSubmitting || gameState.winnerId || !canCallUno) return
+    setUnoSubmitting(true)
     sounds.playUnoCall()
     socket?.emit('call-uno', { roomId })
+    // Prevent rapid duplicate emits while the server broadcasts the updated room.
+    window.setTimeout(() => setUnoSubmitting(false), 1000)
   }
 
   // restart game
@@ -465,7 +470,9 @@ export default function GameBoard({
 
   const winner = players.find(p => p.id === gameState.winnerId)
   const isMeWinner = winner?.id === currentSocketId
-  const canCallUno = (myHand.length === 1 || myHand.length === 2) && !gameState.unoCalls[currentSocketId]
+  const canCallUno = !gameState.winnerId &&
+    (myHand.length === 1 || myHand.length === 2) &&
+    !gameState.unoCalls[currentSocketId]
 
   const isDarkSide = gameState.mode === 'flip' && gameState.side === 'dark'
 
@@ -850,7 +857,12 @@ export default function GameBoard({
           )}
 
           {canCallUno && (
-            <button className="uno-flame-btn" onClick={handleCallUno}>
+            <button
+              className="uno-flame-btn"
+              onClick={handleCallUno}
+              disabled={unoSubmitting}
+              aria-label="Call UNO"
+            >
               <span className="uno-flame-sparkle">🔥</span>
               <span>CALL UNO!</span>
             </button>

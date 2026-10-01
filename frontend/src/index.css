@@ -1807,34 +1807,45 @@ input:focus {
 /* Floating Controls & Shimmering UNO Button */
 .interactive-controls-bar {
   display: flex;
+  position: fixed;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 1.5rem;
-  z-index: 15;
-  min-height: 44px;
+  gap: 0.55rem;
+  z-index: 30;
+  min-height: 0;
 }
 
 .uno-flame-btn {
   background: linear-gradient(135deg, #ed1c24 0%, #ff9800 100%);
   border: 2px solid rgba(255, 255, 255, 0.5);
   color: white;
-  font-size: 1.25rem;
+  font-size: 0.8rem;
   font-weight: 900;
-  padding: 0.75rem 2.2rem;
+  padding: 0.55rem 0.8rem;
   border-radius: 999px;
   cursor: pointer;
   font-family: 'Outfit', sans-serif;
   box-shadow: 0 4px 16px rgba(237, 28, 36, 0.5);
-  letter-spacing: 2px;
+  letter-spacing: 0.7px;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .uno-flame-btn:hover {
   transform: scale(1.06);
   box-shadow: 0 6px 20px rgba(237, 28, 36, 0.7);
+}
+
+.uno-flame-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+  transform: none;
 }
 
 /* ========================================================================= */
@@ -2473,8 +2484,12 @@ input:focus {
   }
 
   .uno-flame-btn {
-    font-size: 1rem;
-    padding: 0.7rem 1.6rem;
+    font-size: 0.72rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .interactive-controls-bar {
+    right: 0.5rem;
   }
 
   .stadium-table {
@@ -3355,5 +3370,3 @@ input:focus {
     transform: translate(-50%, -20px) scale(0.85);
   }
 }
-
-

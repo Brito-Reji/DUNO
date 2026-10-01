@@ -674,8 +674,9 @@ export function passTurn(
 
 // call uno
 export function callUno(gameState: GameState, playerId: string, playerName?: string): boolean {
+  if (gameState.winnerId) return false;
   const hand = gameState.hands[playerId];
-  if (hand && (hand.length === 1 || hand.length === 2)) {
+  if (hand && (hand.length === 1 || hand.length === 2) && !gameState.unoCalls[playerId]) {
     const name = playerName || 'Player';
     gameState.unoCalls[playerId] = true;
     logger.info(`callUno: ${name} called UNO!`, { roomId: gameState.roomId });
