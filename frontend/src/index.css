@@ -1809,8 +1809,9 @@ input:focus {
   display: flex;
   position: fixed;
   right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 5.5rem;
+  top: auto;
+  transform: none;
   flex-direction: column;
   justify-content: center;
   align-items: center;
@@ -2490,6 +2491,7 @@ input:focus {
 
   .interactive-controls-bar {
     right: 0.5rem;
+    bottom: 5rem;
   }
 
   .stadium-table {
